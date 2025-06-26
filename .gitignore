@@ -1,0 +1,76 @@
+# .gitignore
+
+# --- JetBrains/PyCharm IDE ---
+# Project-specific metadata and settings managed by the IDE.
+.idea/
+
+# --- Python ---
+# Byte-compiled / optimized / C extension files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environments
+# Exclude your local virtual environment directory.
+# Common names are .venv, venv, env.
+.venv/
+venv/
+env/
+
+# Mypy cache
+.mypy_cache/
+
+# Pytest cache
+.pytest_cache/
+
+# --- Terraform ---
+# Local Terraform directories
+.terraform/
+
+# State files - these can contain sensitive data and are specific to an environment.
+# It's best practice to use a remote backend for state files instead of committing them.
+*.tfstate
+*.tfstate.*.backup
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Exclude all .tfvars files to avoid committing secrets
+# and environment-specific variables.
+*.tfvars
+*.tfvars.json
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# --- Project-Specific ---
+# Temporary directory used for zipping source code in our Terraform script.
+.tmp/
+
