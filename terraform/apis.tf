@@ -8,10 +8,12 @@ variable "gcp_service_list" {
     "cloudfunctions.googleapis.com",
     "pubsub.googleapis.com",
     "cloudbuild.googleapis.com",
-    "run.googleapis.com",          # The missing API
+    "run.googleapis.com",
     "iam.googleapis.com",
     "storage.googleapis.com",
-    "artifactregistry.googleapis.com"
+    "artifactregistry.googleapis.com",
+    "bigquery.googleapis.com",
+    "bigquerydatatransfer.googleapis.com"
   ]
 }
 

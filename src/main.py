@@ -1,5 +1,12 @@
-# src/main.py
+"""
+main.py
 
+Proxies HTTP requests to Google Cloud Pub/Sub, validating a bearer token.
+
+Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+Developed with assistance from ChatGPT and Google Gemini.
+Apache 2.0 Licensed as described in the file LICENSE
+"""
 import os
 import json
 from google.cloud import pubsub_v1
