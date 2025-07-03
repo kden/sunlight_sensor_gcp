@@ -41,60 +41,75 @@ EOF
 
 # Load initial data from the JSON file
 locals {
-  sensor_metadata_path = "${path.module}/sensor_metadata.json"
-  sensor_metadata      = fileexists(local.sensor_metadata_path) ? jsondecode(file(local.sensor_metadata_path)) : []
+  sensor_metadata_path   = "${path.module}/sensor_metadata.json"
+  sensor_metadata_list   = fileexists(local.sensor_metadata_path) ? jsondecode(file(local.sensor_metadata_path)) : []
+  sensor_metadata_exists = length(local.sensor_metadata_list) > 0
 
-  # Dynamically build the VALUES clause for the INSERT statement
-  sensor_values = join(",\n", [
-    for row in local.sensor_metadata :
-    format("('%s', %f, %f, CURRENT_TIMESTAMP(), '%s', %t, '%s', '%s', '%s')",
-      row["sensor_id"],
-      row["position_x_ft"],
-      row["position_y_ft"],
-      row["board"],
-      row["has_display"],
-      row["sunlight_sensor_model"],
-      row["display_model"],
-      row["wifi_antenna"]
-    )
+  # Convert the list of JSON objects into a single string of newline-delimited JSON,
+  # which is the format required for BigQuery load jobs.
+  sensor_metadata_ndjson = join("\n", [
+    for obj in local.sensor_metadata_list : jsonencode(obj)
   ])
 }
 
-# Job to insert the initial data into the sensor table
-# Note: The principal (user or service account) running `terraform apply`
-# needs the "BigQuery Data Editor" role on the project to run this job.
-resource "google_bigquery_job" "insert_sensor_metadata" {
-  # Only run this job if there is data to insert
-  count   = length(local.sensor_metadata) > 0 ? 1 : 0
+# A temporary GCS bucket to stage the metadata file for BigQuery loading.
+resource "google_storage_bucket" "bq_load_staging" {
+  project                     = var.project_id
+  name                        = "${var.project_id}-bq-load-staging"
+  location                    = "US"
+  force_destroy               = true # Allows deletion of the bucket even if it's not empty
+  uniform_bucket_level_access = true
+
+  lifecycle_rule {
+    action {
+      type = "Delete"
+    }
+    condition {
+      age = 1 # Delete objects after 1 day
+    }
+  }
+}
+
+# Upload the sensor metadata as a newline-delimited JSON file to the staging bucket.
+resource "google_storage_bucket_object" "sensor_metadata_json" {
+  count   = local.sensor_metadata_exists ? 1 : 0
+  name    = "sensor_metadata.ndjson"
+  bucket  = google_storage_bucket.bq_load_staging.name
+  content = local.sensor_metadata_ndjson
+}
+
+# Job to load the data from GCS into the sensor_metadata table.
+resource "google_bigquery_job" "load_sensor_metadata" {
+  count   = local.sensor_metadata_exists ? 1 : 0
   project = var.project_id
-  # A unique job_id is required for each run
-  job_id  = "insert_initial_sensor_metadata_${random_id.job_suffix.hex}"
+  job_id  = "load_initial_sensor_metadata_${random_id.job_suffix.hex}"
 
-  query {
-    query = <<-SQL
-      INSERT INTO `${google_bigquery_table.sensor_metadata_table.project}.${google_bigquery_table.sensor_metadata_table.dataset_id}.${google_bigquery_table.sensor_metadata_table.table_id}`
-      (sensor_id, position_x_ft, position_y_ft, last_updated, board, has_display, sunlight_sensor_model, display_model, wifi_antenna)
-      VALUES
-      ${local.sensor_values};
-    SQL
+  load {
+    source_uris = [
+      "gs://${google_storage_bucket.bq_load_staging.name}/${google_storage_bucket_object.sensor_metadata_json[0].name}"
+    ]
 
-    # Specify DML settings
-    create_disposition = "CREATE_NEVER"
-    write_disposition  = "WRITE_TRUNCATE" # Overwrite the table if it exists
+    destination_table {
+      project_id = google_bigquery_table.sensor_metadata_table.project
+      dataset_id = google_bigquery_table.sensor_metadata_table.dataset_id
+      table_id   = google_bigquery_table.sensor_metadata_table.table_id
+    }
+
+    source_format     = "NEWLINE_DELIMITED_JSON"
+    write_disposition = "WRITE_TRUNCATE"
+    autodetect        = false
   }
 
-  # Add a random suffix to the job_id to ensure it's unique on each apply
   depends_on = [
-    google_bigquery_table.sensor_metadata_table,
+    google_storage_bucket_object.sensor_metadata_json,
   ]
 }
 
-# This resource is required by the `google_bigquery_job` to ensure the job_id is unique
+# This resource ensures the load job re-runs when the source file content changes.
 resource "random_id" "job_suffix" {
   byte_length = 8
   keepers = {
-    # Re-generate the random ID, forcing the job to re-run, whenever the data file changes.
-    file_hash = fileexists(local.sensor_metadata_path) ? filemd5(local.sensor_metadata_path) : ""
+    file_hash = local.sensor_metadata_exists ? filemd5(local.sensor_metadata_path) : ""
   }
 }
 
@@ -236,6 +251,9 @@ resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
           ),
           TIMESTAMP('1970-01-01 00:00:00 UTC')
         )
+        AND JSON_EXTRACT_SCALAR(data, '$.light_intensity') IS NOT NULL
+        AND JSON_EXTRACT_SCALAR(data, '$.sensor_id') IS NOT NULL
+        AND JSON_EXTRACT_SCALAR(data, '$.timestamp') IS NOT NULL
     EOF
   }
 
