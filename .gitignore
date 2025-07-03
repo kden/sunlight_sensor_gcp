@@ -45,6 +45,7 @@ env/
 # --- Terraform ---
 # Local Terraform directories
 .terraform/
+terraform/sensor_metadata.json
 
 # State files - these can contain sensitive data and are specific to an environment.
 # It's best practice to use a remote backend for state files instead of committing them.
