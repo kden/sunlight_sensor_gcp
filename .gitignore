@@ -59,6 +59,8 @@ crash.*.log
 # and environment-specific variables.
 *.tfvars
 *.tfvars.json
+*.tfstate
+*.tfstate.*
 
 # Override files
 override.tf

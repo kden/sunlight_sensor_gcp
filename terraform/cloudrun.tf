@@ -1,7 +1,7 @@
 # terraform/cloudrun.tf
 
 # --- Variables ---
-variable "custom_domain_name" {
+variable "sensor_target_api_domain_name" {
   type        = string
   description = "The custom domain to use, e.g., 'api.yourdomain.com'."
 }
@@ -86,7 +86,7 @@ resource "google_cloud_run_service_iam_member" "allow_public" {
 resource "google_cloud_run_domain_mapping" "custom_domain_map" {
   project  = var.project_id
   location = var.region
-  name     = var.custom_domain_name
+  name     = var.sensor_target_api_domain_name
 
   metadata {
     namespace = var.project_id

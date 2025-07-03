@@ -1,0 +1,11 @@
+# terraform.tfvars_example
+
+# Google Cloud project ID
+project_id = "my-gcp-project-id"
+
+# Region for deployment
+region = "us-central1"
+
+sensor_target_api_domain_name = "sensors.example.com"
+
+secret_bearer_token = "my-secret-token"
