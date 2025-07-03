@@ -1,5 +1,5 @@
 // sunlight_web_app/app/page.tsx
-"use client"; // This directive is necessary for using hooks like useState and useEffect
+"use client";
 
 import { useState, useEffect } from 'react';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
@@ -13,7 +13,6 @@ interface Sensor {
   position_y_ft: number;
   board: string;
   sunlight_sensor_model: string;
-  // Add other fields from your metadata as needed
 }
 
 // --- Mock Data for Local Development ---
@@ -24,7 +23,6 @@ const mockSensorData: Sensor[] = [
 ];
 
 // --- Firebase Configuration ---
-// IMPORTANT: In a real application, use environment variables for this.
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "YOUR_API_KEY",
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "YOUR_AUTH_DOMAIN",
@@ -35,42 +33,40 @@ const firebaseConfig = {
 };
 
 // --- Safer Firebase Initialization ---
-const useMockData = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
-
 let app: FirebaseApp;
 let db: Firestore | null = null;
 
-// Conditionally initialize Firebase only if not using mock data
+const useMockData = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
+
 if (!useMockData) {
-  // This check prevents re-initializing the app on every hot-reload
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-  db = getFirestore(app);
+    try {
+        app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+        db = getFirestore(app);
+    } catch (e) {
+        console.error("Firebase initialization error:", e);
+    }
 }
 
-
 export default function Home() {
-  // --- State Hooks with TypeScript types ---
   const [sensors, setSensors] = useState<Sensor[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSensors = async () => {
-      // If using mock data, just use the local array.
-      if (useMockData) {
+      // Check for mock data environment variable at runtime
+      const useMockDataRuntime = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
+
+      if (useMockDataRuntime) {
         console.log("Using mock data for development.");
-        // Simulate a small network delay
-        setTimeout(() => {
-            setSensors(mockSensorData);
-            setLoading(false);
-        }, 500);
+        setSensors(mockSensorData);
+        setLoading(false);
         return;
       }
 
-      // Otherwise, fetch from Firebase.
       try {
         if (!db) {
-          throw new Error("Firestore is not initialized. Make sure NEXT_PUBLIC_USE_MOCK_DATA is not 'true' and firebaseConfig is correct.");
+          throw new Error("Firestore is not initialized.");
         }
         const sensorsCollection = collection(db, 'sensor_metadata');
         const sensorSnapshot = await getDocs(sensorsCollection);
@@ -90,7 +86,7 @@ export default function Home() {
         setSensors(sensorList);
       } catch (err) {
         console.error("Error fetching sensor data:", err);
-        setError('Failed to load sensor data. Ensure Firebase config is correct and check security rules.');
+        setError('Failed to load sensor data.');
       } finally {
         setLoading(false);
       }
