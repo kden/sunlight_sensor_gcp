@@ -14,7 +14,6 @@ from unittest.mock import patch, MagicMock
 # The 'src.main' import will happen after the mocks are set up by the test runner
 from rest_sensor_api_to_pubsub.src import main
 
-
 class MockRequest:
     def __init__(self, headers, json_data, content_type='application/json'):
         self.headers = headers
@@ -29,7 +28,7 @@ class MockRequest:
 
 class TestProxyToPubSub(unittest.TestCase):
 
-    @patch('src.main.publisher', new_callable=MagicMock)
+    @patch('rest_sensor_api_to_pubsub.src.main.publisher', new_callable=MagicMock)
     @patch.dict('os.environ', {
         'GCP_PROJECT': 'test-project',
         'TOPIC_ID': 'test-topic',

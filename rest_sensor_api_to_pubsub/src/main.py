@@ -61,7 +61,7 @@ def proxy_to_pubsub(request):
         future = publisher.publish(topic_path, data=message_data)
         message_id = future.result(timeout=10)
 
-        print(f"Successfully published message {message_id} to {topic_path}")
+        print(f"INFO: Successfully published message {message_id} to {topic_path}")
         return (f"Message received and published with ID: {message_id}", 200)
 
     except Exception as e:
