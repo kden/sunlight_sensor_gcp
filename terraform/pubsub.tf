@@ -1,15 +1,5 @@
 # terraform/pubsub.tf
 
-# Configure the Google Cloud provider
-terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = ">= 4.50.0"
-    }
-  }
-}
-
 # Variable for your Google Cloud project ID
 variable "project_id" {
   type        = string

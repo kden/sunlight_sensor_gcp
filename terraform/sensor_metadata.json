@@ -1,0 +1,42 @@
+[
+  {
+    "sensor_id": "test_sensor_1",
+    "position_x_ft": 20.0,
+    "position_y_ft": 60.0,
+    "board": "esp32doit-devkit-v1",
+    "has_display": true,
+    "sunlight_sensor_model": "bh1750",
+    "display_model": "ssd1306",
+    "wifi_antenna": "external"
+  },
+  {
+    "sensor_id": "test_sensor_1",
+    "position_x_ft": 10.0,
+    "position_y_ft": 60.0,
+    "board": "esp32doit-devkit-v1",
+    "has_display": true,
+    "sunlight_sensor_model": "bh1750",
+    "display_model": "ssd1306",
+    "wifi_antenna": "pcb"
+  },
+  {
+    "sensor_id": "test_sensor_2",
+    "position_x_ft": 10.0,
+    "position_y_ft": 30.0,
+    "board": "esp32doit-devkit-v1",
+    "has_display": true,
+    "sunlight_sensor_model": "bh1750",
+    "display_model": "ssd1306",
+    "wifi_antenna": "pcb"
+  },
+  {
+    "sensor_id": "test_sensor_3",
+    "position_x_ft": 20.0,
+    "position_y_ft": 30.0,
+    "board": "esp32doit-devkit-v1",
+    "has_display": true,
+    "sunlight_sensor_model": "bh1750",
+    "display_model": "ssd1306",
+    "wifi_antenna": "pcb"
+  }
+]
