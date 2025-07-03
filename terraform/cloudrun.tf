@@ -22,10 +22,9 @@ resource "google_storage_bucket" "source_bucket" {
   uniform_bucket_level_access = true
 }
 
-# --- Create a Zip Archive of the Source Code ---
 data "archive_file" "source_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../src"
+  source_dir  = "${path.module}/../rest_sensor_api_to_pubsub/src"
   output_path = "${path.module}/../.tmp/source.zip"
 }
 

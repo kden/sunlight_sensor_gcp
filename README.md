@@ -1,0 +1,6 @@
+
+
+```shell
+terraform init
+
+```

@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 # The 'src.main' import will happen after the mocks are set up by the test runner
-from src import main
+from rest_sensor_api_to_pubsub.src import main
 
 
 class MockRequest:
