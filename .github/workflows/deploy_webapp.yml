@@ -1,6 +1,6 @@
 # .github/workflows/deploy_webapp.yml
 
-name: Deploy Sunlight Sensor Web App
+name: Deploy Sunlight Web App
 
 on:
   # Trigger the workflow on push events
@@ -23,19 +23,35 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Use a version compatible with your project
+          node-version: '20'
 
       - name: Install dependencies
         run: npm --prefix ./sunlight_web_app install
 
+      # NEW STEP: Parse the JSON secret and set individual env vars
+      - name: Set up Firebase Environment Variables
+        id: set_firebase_env
+        run: |
+          # Use jq to parse the JSON secret and set each key as an output for the next step
+          echo "apiKey=$(echo '${{ secrets.REACT_APP_FIREBASE_CONFIG }}' | jq -r .apiKey)" >> $GITHUB_OUTPUT
+          echo "authDomain=$(echo '${{ secrets.REACT_APP_FIREBASE_CONFIG }}' | jq -r .authDomain)" >> $GITHUB_OUTPUT
+          echo "projectId=$(echo '${{ secrets.REACT_APP_FIREBASE_CONFIG }}' | jq -r .projectId)" >> $GITHUB_OUTPUT
+          echo "storageBucket=$(echo '${{ secrets.REACT_APP_FIREBASE_CONFIG }}' | jq -r .storageBucket)" >> $GITHUB_OUTPUT
+          echo "messagingSenderId=$(echo '${{ secrets.REACT_APP_FIREBASE_CONFIG }}' | jq -r .messagingSenderId)" >> $GITHUB_OUTPUT
+          echo "appId=$(echo '${{ secrets.REACT_APP_FIREBASE_CONFIG }}' | jq -r .appId)" >> $GITHUB_OUTPUT
+          echo "measurementId=$(echo '${{ secrets.REACT_APP_FIREBASE_CONFIG }}' | jq -r .measurementId)" >> $GITHUB_OUTPUT
+
+      # UPDATED STEP: Use the new env vars during the build
       - name: Build React App
-        # The FIREBASE_CONFIG env var is needed for the build step
-        # if your app initializes Firebase on the client side.
         run: npm --prefix ./sunlight_web_app run build
         env:
-          # You will need to add this as a GitHub Secret.
-          # It contains your Firebase project's client-side config.
-          REACT_APP_FIREBASE_CONFIG: ${{ secrets.REACT_APP_FIREBASE_CONFIG }}
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ steps.set_firebase_env.outputs.apiKey }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ steps.set_firebase_env.outputs.authDomain }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ steps.set_firebase_env.outputs.projectId }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ steps.set_firebase_env.outputs.storageBucket }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ steps.set_firebase_env.outputs.messagingSenderId }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ steps.set_firebase_env.outputs.appId }}
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ steps.set_firebase_env.outputs.measurementId }}
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
