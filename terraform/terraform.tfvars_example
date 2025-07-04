@@ -6,6 +6,9 @@ project_id = "my-gcp-project-id"
 # Region for deployment
 region = "us-central1"
 
+sunlight_app_domain_name = "sunlight.example.com"
 sensor_target_api_domain_name = "sensors.example.com"
 
 secret_bearer_token = "my-secret-token"
+
+sensor_metadata_filename = "sensor_metadata.json"

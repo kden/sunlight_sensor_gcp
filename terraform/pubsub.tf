@@ -1,17 +1,6 @@
 # terraform/pubsub.tf
 
-# Variable for your Google Cloud project ID
-variable "project_id" {
-  type        = string
-  description = "The Google Cloud project ID to deploy resources into."
-}
 
-# Variable for the region
-variable "region" {
-  type        = string
-  description = "The region to deploy resources into."
-  default     = "us-central1"
-}
 
 # Create the Pub/Sub topic
 resource "google_pubsub_topic" "sun_sensor_ingest" {

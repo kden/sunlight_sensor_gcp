@@ -1,0 +1,48 @@
+# .github/workflows/deploy_webapp.yml
+
+name: Deploy Sunlight Sensor Web App
+
+on:
+  # Trigger the workflow on push events
+  push:
+    branches:
+      - main # Or your default branch
+    paths:
+      # Only run when files in the web app's directory change
+      - 'sunlight_web_app/**'
+      # Also run if this workflow file itself changes
+      - '.github/workflows/deploy_webapp.yml'
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Use a version compatible with your project
+
+      - name: Install dependencies
+        run: npm --prefix ./sunlight_web_app install
+
+      - name: Build React App
+        # The FIREBASE_CONFIG env var is needed for the build step
+        # if your app initializes Firebase on the client side.
+        run: npm --prefix ./sunlight_web_app run build
+        env:
+          # You will need to add this as a GitHub Secret.
+          # It contains your Firebase project's client-side config.
+          REACT_APP_FIREBASE_CONFIG: ${{ secrets.REACT_APP_FIREBASE_CONFIG }}
+
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SUNLIGHT_SENSOR }}'
+          channelId: live
+          projectId: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
+          target: sunlight-web-app # Optional: specify a deploy target
+          entryPoint: ./sunlight_web_app

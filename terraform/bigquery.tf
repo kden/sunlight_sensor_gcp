@@ -39,18 +39,6 @@ EOF
   deletion_protection = false # Set to true in production
 }
 
-# Load initial data from the JSON file
-locals {
-  sensor_metadata_path   = "${path.module}/sensor_metadata.json"
-  sensor_metadata_list   = fileexists(local.sensor_metadata_path) ? jsondecode(file(local.sensor_metadata_path)) : []
-  sensor_metadata_exists = length(local.sensor_metadata_list) > 0
-
-  # Convert the list of JSON objects into a single string of newline-delimited JSON,
-  # which is the format required for BigQuery load jobs.
-  sensor_metadata_ndjson = join("\n", [
-    for obj in local.sensor_metadata_list : jsonencode(obj)
-  ])
-}
 
 # A temporary GCS bucket to stage the metadata file for BigQuery loading.
 resource "google_storage_bucket" "bq_load_staging" {

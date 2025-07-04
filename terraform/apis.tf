@@ -13,7 +13,11 @@ variable "gcp_service_list" {
     "storage.googleapis.com",
     "artifactregistry.googleapis.com",
     "bigquery.googleapis.com",
-    "bigquerydatatransfer.googleapis.com"
+    "bigquerydatatransfer.googleapis.com",
+    "firestore.googleapis.com",
+    "firebase.googleapis.com",
+    "firebaserules.googleapis.com",
+    "firebasehosting.googleapis.com"
   ]
 }
 
