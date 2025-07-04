@@ -214,7 +214,7 @@ resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
   display_name           = "Transform Sunlight Data"
   location               = "US" # Or your desired location
   data_source_id         = "scheduled_query"
-  schedule               = "every 5 minutes" # Or your desired schedule
+  schedule               = "every hour" # Or your desired schedule
   destination_dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
   service_account_name   = google_service_account.bq_transfer_sa.email
 
