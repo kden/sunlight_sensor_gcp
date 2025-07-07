@@ -1,10 +1,10 @@
 """
-main.py
+test_rest_api_to_pubsub.py
 
-Proxies HTTP requests to Google Cloud Pub/Sub, validating a bearer token.
+Unit tests for the REST API to Pub/Sub proxy.
 
 Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-Developed with assistance from ChatGPT and Google Gemini.
+Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
 Apache 2.0 Licensed as described in the file LICENSE
 """
 
