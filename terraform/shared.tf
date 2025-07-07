@@ -6,6 +6,12 @@ variable "project_id" {
   description = "The Google Cloud project ID to deploy resources into."
 }
 
+variable "dataset_id" {
+  type        = string
+  description = "The BigQuery dataset ID to store data in."
+  default     = "sunlight_data"
+}
+
 # Variable for the region
 variable "region" {
   type        = string

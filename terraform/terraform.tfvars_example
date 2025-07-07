@@ -3,6 +3,9 @@
 # Google Cloud project ID
 project_id = "my-gcp-project-id"
 
+# BigQuery dataset for storing sensor data
+dataset_id = "sunlight_data"
+
 # Region for deployment
 region = "us-central1"
 
