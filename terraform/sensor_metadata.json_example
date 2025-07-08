@@ -1,6 +1,6 @@
 [
   {
-    "sensor_id": "test_sensor_1",
+    "sensor_id": "test_sensor_0",
     "position_x_ft": 20.0,
     "position_y_ft": 60.0,
     "board": "esp32doit-devkit-v1",

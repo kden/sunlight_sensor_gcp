@@ -16,6 +16,12 @@ resource "google_project_iam_member" "bq_to_firebase_sa_bq_viewer" {
   member  = google_service_account.bq_to_firebase_sa.member
 }
 
+resource "google_project_iam_member" "bq_to_firebase_sa_bq_job_user" {
+  project = var.project_id
+  role    = "roles/bigquery.jobUser"
+  member  = google_service_account.bq_to_firebase_sa.member
+}
+
 resource "google_project_iam_member" "bq_to_firebase_sa_firestore_user" {
   project = var.project_id
   role    = "roles/datastore.user"
@@ -31,6 +37,7 @@ resource "google_pubsub_topic" "bq_to_firebase_trigger" {
 # 4. Cloud Scheduler to run the job every hour
 resource "google_cloud_scheduler_job" "bq_to_firebase_scheduler" {
   project   = var.project_id
+  region    = var.region
   name      = "bq-to-firebase-hourly-job"
   schedule  = "0 * * * *" # Runs at the top of every hour
   time_zone = "UTC"
@@ -39,6 +46,10 @@ resource "google_cloud_scheduler_job" "bq_to_firebase_scheduler" {
     topic_name = google_pubsub_topic.bq_to_firebase_trigger.id
     data       = base64encode("Run")
   }
+
+  depends_on = [
+    google_project_service.apis
+  ]
 }
 
 # 5. The Cloud Function
@@ -74,7 +85,9 @@ resource "google_cloudfunctions2_function" "bq_to_firebase_exporter" {
 
   depends_on = [
     google_project_iam_member.bq_to_firebase_sa_bq_viewer,
-    google_project_iam_member.bq_to_firebase_sa_firestore_user
+    google_project_iam_member.bq_to_firebase_sa_firestore_user,
+    google_project_iam_member.bq_to_firebase_sa_bq_job_user,
+    google_project_service.apis
   ]
 }
 
@@ -88,14 +101,14 @@ resource "google_storage_bucket" "function_source_bucket" {
 }
 
 resource "google_storage_bucket_object" "function_source_object" {
-  name   = "source.zip"
+  name   = "firebase_export_source.zip"
   bucket = google_storage_bucket.function_source_bucket.name
-  source = data.archive_file.function_source.output_path
+  source = data.archive_file.firebase_export_function_source.output_path
 }
 
-data "archive_file" "function_source" {
+data "archive_file" "firebase_export_function_source" {
   type        = "zip"
   # UPDATED: Point the source directory to the new 'src' folder
-  source_dir  = "${path.module}/functions/bq_to_firebase/src"
-  output_path = "${path.module}/functions/bq_to_firebase/src.zip"
+  source_dir  = "${path.module}/../functions/bq_to_firebase/src"
+  output_path = "${path.module}/../functions/bq_to_firebase/firebase_export_source.zip"
 }

@@ -31,12 +31,13 @@ class MockBigQueryRow:
 
 class TestExportToFirestore(unittest.TestCase):
 
-    @mock.patch.dict(os.environ, {"GCP_PROJECT": "test-project"})
     @mock.patch("main.firestore.Client")
     @mock.patch("main.bigquery.Client")
     def test_export_with_new_data(self, mock_bigquery_client, mock_firestore_client):
         """Tests the main success path where new data is found and processed."""
         # --- Setup Mocks ---
+        # Configure the mock client to have a 'project' attribute.
+        mock_bigquery_client.return_value.project = "test-project"
         # Mock Firestore get() for metadata
         mock_metadata_doc = mock.Mock()
         mock_metadata_doc.exists = True

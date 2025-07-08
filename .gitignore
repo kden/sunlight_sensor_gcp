@@ -76,4 +76,4 @@ terraform.rc
 # --- Project-Specific ---
 # Temporary directory used for zipping source code in our Terraform script.
 .tmp/
-
+**/*_source.zip

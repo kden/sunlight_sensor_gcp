@@ -78,12 +78,13 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
           raw.timestamp >= COALESCE(sensor_state.last_data.observation_minute, TIMESTAMP('1970-01-01 00:00:00+00:00'))
       ),
 
-      -- Step 3: Combine the last known data point with the new raw data.
-      combined_data AS (
+      -- Step 3: Combine new and old data, which may create duplicates at the boundary.
+      combined_data_with_dupes AS (
         SELECT
           TIMESTAMP_TRUNC(timestamp, MINUTE) as observation_minute,
           sensor_id,
-          AVG(light_intensity) as light_intensity
+          AVG(light_intensity) as light_intensity,
+          1 as priority -- new data gets higher priority
         FROM
           new_raw_data
         GROUP BY
@@ -93,9 +94,18 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
         SELECT
           s.last_data.observation_minute,
           s.sensor_id,
-          s.last_data.smoothed_light_intensity as light_intensity
+          s.last_data.smoothed_light_intensity as light_intensity,
+          2 as priority -- old data gets lower priority
         FROM
           sensor_state s
+        WHERE s.last_data.observation_minute IS NOT NULL
+      ),
+      -- CORRECTED: Deduplicate the combined data, preferring the newer data if there's a clash.
+      combined_data AS (
+        SELECT observation_minute, sensor_id, light_intensity FROM (
+            SELECT *, ROW_NUMBER() OVER(PARTITION BY observation_minute, sensor_id ORDER BY priority ASC) as rn
+            FROM combined_data_with_dupes
+        ) WHERE rn = 1
       ),
 
       -- Step 4: Create a complete timeline of minutes to fill the gaps.
@@ -199,6 +209,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
         */
       FROM
         gaps_with_boundaries
+      WHERE last_point.light_intensity IS NOT NULL
 
     ) AS S
     ON T.observation_minute = S.observation_minute AND T.sensor_id = S.sensor_id

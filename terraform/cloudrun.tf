@@ -22,17 +22,17 @@ resource "google_storage_bucket" "source_bucket" {
   uniform_bucket_level_access = true
 }
 
-data "archive_file" "source_zip" {
+data "archive_file" "rest_sensor_api_to_pubsub_source_zip" {
   type        = "zip"
   source_dir  = "${path.module}/../rest_sensor_api_to_pubsub/src"
-  output_path = "${path.module}/../.tmp/source.zip"
+  output_path = "${path.module}/../.tmp/rest_sensor_api_to_pubsub_source.zip"
 }
 
 # --- Upload the Zipped Source Code to the GCS Bucket ---
 resource "google_storage_bucket_object" "source_archive" {
-  name   = "source.zip#${data.archive_file.source_zip.output_md5}"
+  name   = "rest_sensor_api_to_pubsub_source.zip#${data.archive_file.rest_sensor_api_to_pubsub_source_zip.output_md5}"
   bucket = google_storage_bucket.source_bucket.name
-  source = data.archive_file.source_zip.output_path
+  source = data.archive_file.rest_sensor_api_to_pubsub_source_zip.output_path
 }
 
 # --- 1. Define the Cloud Function (2nd Gen) ---
@@ -61,7 +61,7 @@ resource "google_cloudfunctions2_function" "proxy_function" {
     timeout_seconds    = 60
     # Set environment variables for the function
     environment_variables = {
-      "GCP_PROJECT"         = var.project_id # <-- ADDED THIS LINE
+      "GCP_PROJECT"         = var.project_id
       "TOPIC_ID"            = google_pubsub_topic.sun_sensor_ingest.name
       "SECRET_BEARER_TOKEN" = var.secret_bearer_token
     }

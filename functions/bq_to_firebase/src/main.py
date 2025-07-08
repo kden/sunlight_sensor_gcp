@@ -27,13 +27,11 @@ def export_to_firestore(event, context):
     firestore_client = firestore.Client()
     bigquery_client = bigquery.Client()
 
-    # Get Project ID at runtime to ensure it's correct in all environments
-    project_id = os.environ.get("GCP_PROJECT")
-    if not project_id:
-        # In a real GCP environment, this is set automatically.
-        # For local testing, it must be set manually.
-        raise ValueError("GCP_PROJECT environment variable not set.")
+    # Get Project ID directly from the client.
+    # The client automatically discovers the project ID when running on GCP.
+    project_id = bigquery_client.project
 
+    # Get Project ID at runtime to ensure it's correct in all environments
     print(f"Cloud Function triggered for project: {project_id}")
 
     # --- 1. Get the last processed timestamp from Firestore ---
