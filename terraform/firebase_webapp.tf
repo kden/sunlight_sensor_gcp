@@ -4,7 +4,7 @@
 resource "google_firebase_web_app" "default" {
   # This resource is also in the beta provider, which you already have configured.
   provider       = google-beta
-  project        = var.project_id
+  project        = var.gcp_project_id
   display_name   = "Sunlight Web App"
 
   depends_on = [
@@ -16,7 +16,7 @@ resource "google_firebase_web_app" "default" {
 # Data source to fetch the configuration of the web app we just created.
 data "google_firebase_web_app_config" "default" {
   provider   = google-beta
-  project    = var.project_id
+  project    = var.gcp_project_id
   web_app_id = google_firebase_web_app.default.app_id
 }
 
@@ -26,7 +26,7 @@ output "firebase_web_app_config" {
   value = jsonencode({
     apiKey            = data.google_firebase_web_app_config.default.api_key
     authDomain        = data.google_firebase_web_app_config.default.auth_domain
-    projectId         = var.project_id
+    projectId         = var.gcp_project_id
     storageBucket     = data.google_firebase_web_app_config.default.storage_bucket
     messagingSenderId = data.google_firebase_web_app_config.default.messaging_sender_id
     appId             = google_firebase_web_app.default.app_id

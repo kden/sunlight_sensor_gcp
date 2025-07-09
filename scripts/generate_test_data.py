@@ -41,7 +41,7 @@ from datetime import datetime, timedelta, timezone
 
 # Constants with environment variable fallback
 SENSOR_ID = os.getenv('SENSOR_ID', 'test_sensor')
-SENSOR_API_URL = os.getenv('SENSOR_API_URL', 'https://sensors.example.com')
+SENSOR_API_URL = os.getenv('SENSOR_API_URL', '')
 BEARER_TOKEN = os.getenv('BEARER_TOKEN', 'xxx')
 
 def generate_light_intensity(minute, phase_shift=0):
@@ -75,7 +75,7 @@ def main():
     # create a day's worth of data in a sine wave pattern (arbitrary continuous changing function)
     # Introduce some randomness to the minute intervals to simulate real-world delays and uncertainty
     for sensor_number in range(4):
-        sensor_id = SENSOR_ID + str(sensor_number)
+        sensor_id = SENSOR_ID + '_' + str(sensor_number)
         phase_shift = (sensor_number * math.pi) / 2
         for minute in range(1440):
             # Add randomness to the interval (up to ±5 seconds)

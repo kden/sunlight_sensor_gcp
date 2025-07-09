@@ -1,7 +1,7 @@
 resource "google_bigquery_table" "downsampled_sunlight_table" {
   dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
   table_id   = "downsampled_sunlight_data"
-  project    = var.project_id
+  project    = var.gcp_project_id
 
   time_partitioning {
     type  = "DAY"
@@ -31,7 +31,7 @@ resource "google_bigquery_table" "downsampled_sunlight_table" {
 }
 
 resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
-  project                = var.project_id
+  project                = var.gcp_project_id
   display_name           = "downsample_sunlight_transfer: Incremental Downsample Sunlight Data (LOCF)"
   location               = "US" # Or your preferred location
   data_source_id         = "scheduled_query"
@@ -42,7 +42,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
 
   params = {
     query = <<-EOT
-    MERGE INTO `${var.project_id}.${var.dataset_id}.${google_bigquery_table.downsampled_sunlight_table.table_id}` AS T
+    MERGE INTO `${var.gcp_project_id}.${var.dataset_id}.${google_bigquery_table.downsampled_sunlight_table.table_id}` AS T
     USING (
       WITH
       -- Step 1: Get the last known state for EACH sensor in a single, efficient pass.
@@ -57,7 +57,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
             LIMIT 1
           ) [OFFSET(0)] AS last_data
         FROM
-          `${var.project_id}.${var.dataset_id}.${google_bigquery_table.downsampled_sunlight_table.table_id}`
+          `${var.gcp_project_id}.${var.dataset_id}.${google_bigquery_table.downsampled_sunlight_table.table_id}`
         GROUP BY
           sensor_id
       ),
@@ -69,7 +69,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
           raw.sensor_id,
           raw.light_intensity
         FROM
-          `${var.project_id}.${var.dataset_id}.${google_bigquery_table.transformed_sunlight_table.table_id}` AS raw
+          `${var.gcp_project_id}.${var.dataset_id}.${google_bigquery_table.transformed_sunlight_table.table_id}` AS raw
         LEFT JOIN
           sensor_state
           ON raw.sensor_id = sensor_state.sensor_id

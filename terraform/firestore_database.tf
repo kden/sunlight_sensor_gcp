@@ -1,8 +1,10 @@
 # terraform/firestore_database.tf
 
 # Create the Firestore database instance
+# You can never delete a Firestore database once created.  You would have to delete
+# the entire Google Cloud project.
 resource "google_firestore_database" "database" {
-  project     = var.project_id
+  project     = var.gcp_project_id
   name        = "(default)"
   location_id = var.region
   type        = "FIRESTORE_NATIVE"
@@ -11,11 +13,19 @@ resource "google_firestore_database" "database" {
   depends_on = [
     google_project_service.apis,
   ]
+
+  lifecycle {
+    prevent_destroy = true
+    ignore_changes = [
+      location_id,
+      type,
+    ]
+  }
 }
 
 # Step 1: Define the ruleset using the new resource type
-resource "google_firebaserules_ruleset" "firestore" {
-  project = var.project_id
+resource "google_firebaserules_ruleset" "default_firestore_rules" {
+  project = var.gcp_project_id
   source {
     files {
       # The name is arbitrary but required.
@@ -37,6 +47,10 @@ resource "google_firebaserules_ruleset" "firestore" {
               allow read: if true;
               allow write: if false; // Disallow public writes
             }
+            match /sunlight_readings/{readingId} {
+              allow read: if true;
+              allow write: if false; // Disallow public writes
+            }
           }
         }
       EOT
@@ -50,9 +64,9 @@ resource "google_firebaserules_ruleset" "firestore" {
 }
 
 # Step 2: Create a "release" to apply the ruleset to Firestore
-resource "google_firebaserules_release" "firestore" {
-  project      = var.project_id
-  ruleset_name = google_firebaserules_ruleset.firestore.name
+resource "google_firebaserules_release" "default_firestore_rules_release" {
+  project      = var.gcp_project_id
+  ruleset_name = google_firebaserules_ruleset.default_firestore_rules.name
 
   # This name tells Firebase which service these rules are for.
   # For Cloud Firestore, it is always "cloud.firestore".
@@ -62,7 +76,7 @@ resource "google_firebaserules_release" "firestore" {
   # Ensure the database and ruleset exist before creating the release.
   depends_on = [
     google_firestore_database.database,
-    google_firebaserules_ruleset.firestore,
+    google_firebaserules_ruleset.default_firestore_rules,
   ]
 }
 
@@ -72,7 +86,7 @@ resource "google_firestore_document" "sensor_metadata" {
   # We convert the list to a map where the key is the index of the element.
   for_each = { for i, sensor in local.sensor_metadata_list : i => sensor }
 
-  project    = var.project_id
+  project    = var.gcp_project_id
   collection = "sensor_metadata"
 
   # NOTE: The document ID must be unique. Since 'sensor_id' can be duplicated

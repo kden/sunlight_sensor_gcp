@@ -3,7 +3,7 @@
 # 1. Service Account for the Cloud Function
 # This gives the function a dedicated identity with specific permissions.
 resource "google_service_account" "bq_to_firebase_sa" {
-  project      = var.project_id
+  project      = var.gcp_project_id
   account_id   = "bq-to-firebase-exporter"
   display_name = "BigQuery to Firebase Exporter SA"
 }
@@ -11,32 +11,32 @@ resource "google_service_account" "bq_to_firebase_sa" {
 # 2. Permissions for the Service Account
 # It needs to read from BigQuery and write to Firestore (which uses datastore permissions).
 resource "google_project_iam_member" "bq_to_firebase_sa_bq_viewer" {
-  project = var.project_id
+  project = var.gcp_project_id
   role    = "roles/bigquery.dataViewer"
   member  = google_service_account.bq_to_firebase_sa.member
 }
 
 resource "google_project_iam_member" "bq_to_firebase_sa_bq_job_user" {
-  project = var.project_id
+  project = var.gcp_project_id
   role    = "roles/bigquery.jobUser"
   member  = google_service_account.bq_to_firebase_sa.member
 }
 
 resource "google_project_iam_member" "bq_to_firebase_sa_firestore_user" {
-  project = var.project_id
+  project = var.gcp_project_id
   role    = "roles/datastore.user"
   member  = google_service_account.bq_to_firebase_sa.member
 }
 
 # 3. Pub/Sub Topic to trigger the function
 resource "google_pubsub_topic" "bq_to_firebase_trigger" {
-  project = var.project_id
+  project = var.gcp_project_id
   name    = "bq-to-firebase-trigger"
 }
 
 # 4. Cloud Scheduler to run the job every hour
 resource "google_cloud_scheduler_job" "bq_to_firebase_scheduler" {
-  project   = var.project_id
+  project   = var.gcp_project_id
   region    = var.region
   name      = "bq-to-firebase-hourly-job"
   schedule  = "0 * * * *" # Runs at the top of every hour
@@ -55,7 +55,7 @@ resource "google_cloud_scheduler_job" "bq_to_firebase_scheduler" {
 # 5. The Cloud Function
 # This resource points to a local directory containing the Python code.
 resource "google_cloudfunctions2_function" "bq_to_firebase_exporter" {
-  project  = var.project_id
+  project  = var.gcp_project_id
   name     = "bq-to-firebase-exporter"
   location = var.region
 
@@ -64,8 +64,8 @@ resource "google_cloudfunctions2_function" "bq_to_firebase_exporter" {
     entry_point = "export_to_firestore"
     source {
       storage_source {
-        bucket = google_storage_bucket.function_source_bucket.name
-        object = google_storage_bucket_object.function_source_object.name
+        bucket = google_storage_bucket.bq_to_fb_function_source_bucket.name
+        object = google_storage_bucket_object.bq_to_fb_function_source_object.name
       }
     }
   }
@@ -93,22 +93,21 @@ resource "google_cloudfunctions2_function" "bq_to_firebase_exporter" {
 
 # 6. Cloud Storage for the function's source code
 # Terraform needs to upload the local code files to a bucket.
-resource "google_storage_bucket" "function_source_bucket" {
-  project      = var.project_id
-  name         = "${var.project_id}-bq-to-firebase-source"
+resource "google_storage_bucket" "bq_to_fb_function_source_bucket" {
+  project      = var.gcp_project_id
+  name         = "${var.gcp_project_id}-bq-to-firebase-source"
   location     = "US" # Or your multi-region of choice
   force_destroy = true
 }
 
-resource "google_storage_bucket_object" "function_source_object" {
+resource "google_storage_bucket_object" "bq_to_fb_function_source_object" {
   name   = "firebase_export_source.zip"
-  bucket = google_storage_bucket.function_source_bucket.name
+  bucket = google_storage_bucket.bq_to_fb_function_source_bucket.name
   source = data.archive_file.firebase_export_function_source.output_path
 }
 
 data "archive_file" "firebase_export_function_source" {
   type        = "zip"
-  # UPDATED: Point the source directory to the new 'src' folder
   source_dir  = "${path.module}/../functions/bq_to_firebase/src"
   output_path = "${path.module}/../functions/bq_to_firebase/firebase_export_source.zip"
 }

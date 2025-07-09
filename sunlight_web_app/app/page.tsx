@@ -1,9 +1,9 @@
-// sunlight_web_app/app/page.tsx
 "use client";
 
 import { useState, useEffect } from 'react';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, DocumentData, Firestore } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, DocumentData } from 'firebase/firestore';
+// Import the centralized app instance using the path alias
+import { app } from '@/app/firebase';
 
 // --- Define the Sensor data structure ---
 interface Sensor {
@@ -22,31 +22,6 @@ const mockSensorData: Sensor[] = [
   { id: '3', sensor_id: 'mock_sensor_3', position_x_ft: 50, position_y_ft: 60, board: 'esp32-mock', sunlight_sensor_model: 'mock-bh1750' },
 ];
 
-// --- Firebase Configuration ---
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "YOUR_API_KEY",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "YOUR_AUTH_DOMAIN",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "YOUR_PROJECT_ID",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "YOUR_STORAGE_BUCKET",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "YOUR_MESSAGING_SENDER_ID",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "YOUR_APP_ID"
-};
-
-// --- Safer Firebase Initialization ---
-let app: FirebaseApp;
-let db: Firestore | null = null;
-
-const useMockData = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
-
-if (!useMockData) {
-    try {
-        app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-        db = getFirestore(app);
-    } catch (e) {
-        console.error("Firebase initialization error:", e);
-    }
-}
-
 export default function Home() {
   const [sensors, setSensors] = useState<Sensor[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -54,7 +29,6 @@ export default function Home() {
 
   useEffect(() => {
     const fetchSensors = async () => {
-      // Check for mock data environment variable at runtime
       const useMockDataRuntime = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
 
       if (useMockDataRuntime) {
@@ -65,9 +39,7 @@ export default function Home() {
       }
 
       try {
-        if (!db) {
-          throw new Error("Firestore is not initialized.");
-        }
+        const db = getFirestore(app);
         const sensorsCollection = collection(db, 'sensor_metadata');
         const sensorSnapshot = await getDocs(sensorsCollection);
 
@@ -96,11 +68,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="bg-gray-900 text-white min-h-screen font-sans">
-      <header className="bg-gray-800 p-4 shadow-md">
-        <h1 className="text-3xl font-bold text-center text-teal-300">Sunlight Sensor Dashboard</h1>
-      </header>
-      <main className="p-4 md:p-8">
+    <div className="font-sans">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl font-semibold mb-4 text-teal-400">Sensor Metadata</h2>
           {loading && <p className="text-center text-lg">Loading sensor data...</p>}
@@ -132,7 +100,6 @@ export default function Home() {
             </div>
           )}
         </div>
-      </main>
     </div>
   );
 }

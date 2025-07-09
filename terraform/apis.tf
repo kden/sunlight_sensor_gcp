@@ -27,7 +27,7 @@ variable "gcp_service_list" {
 resource "google_project_service" "apis" {
   for_each = toset(var.gcp_service_list)
 
-  project                    = var.project_id
+  project                    = var.gcp_project_id
   service                    = each.key
   disable_on_destroy         = false # Keep APIs enabled even if the project is destroyed
 }

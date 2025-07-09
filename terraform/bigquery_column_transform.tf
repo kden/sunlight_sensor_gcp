@@ -1,7 +1,7 @@
 
 # The first processing table that gets the transformed raw data
 resource "google_bigquery_table" "transformed_sunlight_table" {
-  project    = var.project_id
+  project    = var.gcp_project_id
   dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
   table_id   = "transformed_sunlight_data"
 
@@ -46,27 +46,27 @@ EOF
 
 # Service account for the scheduled query
 resource "google_service_account" "bq_transfer_sa" {
-  project      = var.project_id
+  project      = var.gcp_project_id
   account_id   = "bq-transfer-service-account"
   display_name = "BigQuery Transfer Service Account"
 }
 
 # Grant the transfer service account the necessary roles
 resource "google_project_iam_member" "bq_transfer_sa_data_editor" {
-  project = var.project_id
+  project = var.gcp_project_id
   role    = "roles/bigquery.dataEditor"
   member  = "serviceAccount:${google_service_account.bq_transfer_sa.email}"
 }
 
 resource "google_project_iam_member" "bq_transfer_sa_job_user" {
-  project = var.project_id
+  project = var.gcp_project_id
   role    = "roles/bigquery.user"
   member  = "serviceAccount:${google_service_account.bq_transfer_sa.email}"
 }
 
 # The scheduled query that processes the raw data into the transformed table
 resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
-  project                = var.project_id
+  project                = var.gcp_project_id
   display_name           = "transform_sunlight_data: Transform Sunlight Data"
   location               = "US" # Or your desired location
   data_source_id         = "scheduled_query"

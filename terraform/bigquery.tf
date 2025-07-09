@@ -1,24 +1,24 @@
 # Grant Pub/Sub service account permission to write to BigQuery
 resource "google_project_iam_member" "pubsub_bigquery_publisher" {
-  project = var.project_id
+  project = var.gcp_project_id
   role    = "roles/bigquery.dataEditor"
   member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
 
 # Get the project details
 data "google_project" "project" {
-  project_id = var.project_id
+  project_id = var.gcp_project_id
 }
 
 resource "google_bigquery_dataset" "sunlight_dataset" {
-  project    = var.project_id
+  project    = var.gcp_project_id
   dataset_id = var.dataset_id
   location   = "US" # Choose the appropriate location
 }
 
 # New table for sensor metadata
 resource "google_bigquery_table" "sensor_metadata_table" {
-  project    = var.project_id
+  project    = var.gcp_project_id
   dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
   table_id   = "sensor_metadata"
 
@@ -42,8 +42,8 @@ EOF
 
 # A temporary GCS bucket to stage the metadata file for BigQuery loading.
 resource "google_storage_bucket" "bq_load_staging" {
-  project                     = var.project_id
-  name                        = "${var.project_id}-bq-load-staging"
+  project                     = var.gcp_project_id
+  name                        = "${var.gcp_project_id}-bq-load-staging"
   location                    = "US"
   force_destroy               = true # Allows deletion of the bucket even if it's not empty
   uniform_bucket_level_access = true
@@ -69,7 +69,7 @@ resource "google_storage_bucket_object" "sensor_metadata_json" {
 # Job to load the data from GCS into the sensor_metadata table.
 resource "google_bigquery_job" "load_sensor_metadata" {
   count   = local.sensor_metadata_exists ? 1 : 0
-  project = var.project_id
+  project = var.gcp_project_id
   job_id  = "load_initial_sensor_metadata_${random_id.job_suffix.hex}"
 
   load {
@@ -103,7 +103,7 @@ resource "random_id" "job_suffix" {
 
 # The raw data table that receives messages from Pub/Sub
 resource "google_bigquery_table" "sunlight_table" {
-  project    = var.project_id
+  project    = var.gcp_project_id
   dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
   table_id   = "sunlight_intensity"
 
@@ -134,7 +134,7 @@ EOF
 
 # The Pub/Sub subscription that writes to the raw BigQuery table
 resource "google_pubsub_subscription" "sunlight_subscription_bq" {
-  project = var.project_id
+  project = var.gcp_project_id
   name    = "sunlight-sensor-data-to-bq"
   topic   = google_pubsub_topic.sun_sensor_ingest.name  # Reference the existing topic
 

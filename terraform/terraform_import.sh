@@ -16,3 +16,5 @@ terraform import 'google_project_service.apis["run.googleapis.com"]' sunlight-se
 terraform import 'google_project_service.apis["iam.googleapis.com"]' sunlight-sensor/iam.googleapis.com
 terraform import 'google_project_service.apis["storage.googleapis.com"]' sunlight-sensor/storage.googleapis.com
 terraform import 'google_project_service.apis["artifactregistry.googleapis.com"]' sunlight-sensor/artifactregistry.googleapis.com
+
+terraform import google_firestore_database.database projects/sunlight-sensor/databases/(default)

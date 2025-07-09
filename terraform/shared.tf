@@ -1,7 +1,7 @@
 # terraform/shared.tf
 
 # Variable for your Google Cloud project ID
-variable "project_id" {
+variable "gcp_project_id" {
   type        = string
   description = "The Google Cloud project ID to deploy resources into."
 }

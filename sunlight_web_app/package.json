@@ -8,13 +8,15 @@
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
-    "clean": "rimraf .next node_modules .cache"
+    "//": "This clean script uses rm -rf, which is not cross-platform.",
+    "clean": "rm -rf .next node_modules .cache"
   },
   "dependencies": {
     "firebase": "^11.10.0",
     "next": "15.3.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "recharts": "^2.12.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -31,7 +33,8 @@
     "jest-environment-jsdom": "^29.7.0",
     "rimraf": "^6.0.1",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "@types/recharts": "^1.8.23"
   },
   "overrides": {
     "glob": "^9.0.0"

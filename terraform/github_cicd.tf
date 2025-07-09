@@ -1,6 +1,6 @@
 # Create a dedicated service account for GitHub Actions to use for deployments.
 resource "google_service_account" "github_actions_deployer" {
-  project      = var.project_id
+  project      = var.gcp_project_id
   account_id   = "github-actions-deployer"
   display_name = "GitHub Actions Deployer"
 }
@@ -8,7 +8,7 @@ resource "google_service_account" "github_actions_deployer" {
 # Grant the service account the "Firebase Hosting Admin" role on the project.
 # This gives it just enough permission to deploy new versions to Firebase Hosting.
 resource "google_project_iam_member" "hosting_admin_binding" {
-  project = var.project_id
+  project = var.gcp_project_id
   role    = "roles/firebasehosting.admin"
   member  = "serviceAccount:${google_service_account.github_actions_deployer.email}"
 }

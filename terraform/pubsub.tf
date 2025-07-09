@@ -4,13 +4,13 @@
 
 # Create the Pub/Sub topic
 resource "google_pubsub_topic" "sun_sensor_ingest" {
-  project = var.project_id
+  project = var.gcp_project_id
   name    = "sun-sensor-ingest-topic"
 }
 
 # Create a subscription for testing and verification
 resource "google_pubsub_subscription" "sun_sensor_ingest_test_sub" {
-  project = var.project_id
+  project = var.gcp_project_id
   name    = "sun-sensor-ingest-test-sub"
   topic   = google_pubsub_topic.sun_sensor_ingest.name
 

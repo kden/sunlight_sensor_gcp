@@ -8,7 +8,7 @@ variable "sunlight_app_domain_name" {
 # It's a good practice to include it explicitly.
 resource "google_firebase_project" "default" {
   provider = google-beta
-  project = var.project_id
+  project = var.gcp_project_id
 
   depends_on = [
     google_project_service.apis
@@ -19,8 +19,8 @@ resource "google_firebase_project" "default" {
 # The site_id is often the same as the project_id.
 resource "google_firebase_hosting_site" "default" {
   provider = google-beta
-  project = var.project_id
-  site_id = var.project_id # You can customize this if needed
+  project = var.gcp_project_id
+  site_id = var.gcp_project_id # You can customize this if needed
 
   depends_on = [
     google_firebase_project.default,
@@ -33,7 +33,7 @@ resource "google_firebase_hosting_site" "default" {
 resource "google_firebase_hosting_custom_domain" "default" {
   # This resource is in the beta provider.
   provider      = google-beta
-  project       = var.project_id
+  project       = var.gcp_project_id
   site_id       = google_firebase_hosting_site.default.site_id
   custom_domain = var.sunlight_app_domain_name
 

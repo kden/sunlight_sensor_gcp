@@ -24,15 +24,16 @@ describe('Home Page', () => {
   });
   /**
    * Test 1: A simple "smoke test" to ensure the component renders without errors
-   * and that static elements like the main heading are present.
+   * and that static elements like the page heading are present.
    */
-  test('renders the main heading', () => {
+  test('renders the sensor metadata heading', () => {
     // Render the component in a virtual DOM
     render(<Home />);
 
-    // Use `screen.getByRole` to find the main heading element.
+    // Use `screen.getByRole` to find the page's heading element.
+    // This was changed from "Sunlight Sensor Dashboard" which is now in the layout.
     const heading = screen.getByRole('heading', {
-      name: /sunlight sensor dashboard/i,
+      name: /sensor metadata/i,
     });
 
     // Assert that the heading is in the document.

@@ -14,9 +14,9 @@ variable "secret_bearer_token" {
 
 
 # --- Create a GCS Bucket to Store the Service's Source Code ---
-resource "google_storage_bucket" "source_bucket" {
-  project      = var.project_id
-  name         = "${var.project_id}-cloudrun-source"
+resource "google_storage_bucket" "rest_proxy_cloudrun_source_bucket" {
+  project      = var.gcp_project_id
+  name         = "${var.gcp_project_id}-cloudrun-source"
   location     = var.region
   force_destroy = true
   uniform_bucket_level_access = true
@@ -31,14 +31,14 @@ data "archive_file" "rest_sensor_api_to_pubsub_source_zip" {
 # --- Upload the Zipped Source Code to the GCS Bucket ---
 resource "google_storage_bucket_object" "source_archive" {
   name   = "rest_sensor_api_to_pubsub_source.zip#${data.archive_file.rest_sensor_api_to_pubsub_source_zip.output_md5}"
-  bucket = google_storage_bucket.source_bucket.name
+  bucket = google_storage_bucket.rest_proxy_cloudrun_source_bucket.name
   source = data.archive_file.rest_sensor_api_to_pubsub_source_zip.output_path
 }
 
 # --- 1. Define the Cloud Function (2nd Gen) ---
 # We revert to this resource as it correctly handles building from source.
 resource "google_cloudfunctions2_function" "proxy_function" {
-  project  = var.project_id
+  project  = var.gcp_project_id
   name     = "rest-to-pubsub-proxy-function"
   location = var.region
 
@@ -48,7 +48,7 @@ resource "google_cloudfunctions2_function" "proxy_function" {
     entry_point = "proxy_to_pubsub"
     source {
       storage_source {
-        bucket = google_storage_bucket.source_bucket.name
+        bucket = google_storage_bucket.rest_proxy_cloudrun_source_bucket.name
         object = google_storage_bucket_object.source_archive.name
       }
     }
@@ -61,7 +61,7 @@ resource "google_cloudfunctions2_function" "proxy_function" {
     timeout_seconds    = 60
     # Set environment variables for the function
     environment_variables = {
-      "GCP_PROJECT"         = var.project_id
+      "GCP_PROJECT"         = var.gcp_project_id
       "TOPIC_ID"            = google_pubsub_topic.sun_sensor_ingest.name
       "SECRET_BEARER_TOKEN" = var.secret_bearer_token
     }
@@ -83,12 +83,12 @@ resource "google_cloud_run_service_iam_member" "allow_public" {
 # --- 3. Map Your Custom Domain to the underlying Cloud Run service ---
 # This resource handles the domain mapping and SSL certificate provisioning for free.
 resource "google_cloud_run_domain_mapping" "custom_domain_map" {
-  project  = var.project_id
+  project  = var.gcp_project_id
   location = var.region
   name     = var.sensor_target_api_domain_name
 
   metadata {
-    namespace = var.project_id
+    namespace = var.gcp_project_id
   }
 
   spec {
