@@ -31,6 +31,14 @@ jobs:
       - name: Run Unit Tests
         run: npm --prefix ./sunlight_web_app run test
 
+      - name: Publish Test Results
+        uses: dorny/test-reporter@v1
+        if: always() # This ensures the report is published even if tests fail
+        with:
+          name: Jest Test Results
+          path: sunlight_web_app/reports/junit.xml
+          reporter: jest-junit
+
       - name: Set up Firebase Environment Variables
         id: set_firebase_env
         run: |
