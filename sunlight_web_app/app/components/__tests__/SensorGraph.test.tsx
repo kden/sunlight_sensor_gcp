@@ -106,8 +106,8 @@ describe('SensorGraph', () => {
   test('displays "no data" message when no readings are found', async () => {
     mockGetDocs
       .mockResolvedValueOnce(mockSensorMetadata)
-      // Prefix unused variable with an underscore and provide a type for the callback
-      .mockResolvedValueOnce({ docs: [], forEach: (_cb: (doc: MockDoc) => void) => [] });
+      // This mock now uses a function that takes no arguments, fixing the lint error.
+      .mockResolvedValueOnce({ docs: [], forEach: () => {} });
 
     render(<SensorGraph />);
 
