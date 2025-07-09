@@ -33,7 +33,7 @@ describe('Home Page', () => {
     // Use `screen.getByRole` to find the page's heading element.
     // This was changed from "Sunlight Sensor Dashboard" which is now in the layout.
     const heading = screen.getByRole('heading', {
-      name: /sensor metadata/i,
+      name: /sensor details/i,
     });
 
     // Assert that the heading is in the document.

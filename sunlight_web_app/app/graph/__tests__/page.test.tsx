@@ -16,7 +16,7 @@ describe('GraphPage', () => {
 
     // Check for the main heading of the page
     const heading = screen.getByRole('heading', {
-      name: /sensor readings/i,
+      name: /sensor levels/i,
     });
     expect(heading).toBeInTheDocument();
 

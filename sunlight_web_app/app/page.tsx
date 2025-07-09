@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { getFirestore, collection, getDocs, DocumentData } from 'firebase/firestore';
-// Import the centralized app instance using the path alias
 import { app } from '@/app/firebase';
 
 // --- Define the Sensor data structure ---
@@ -32,7 +31,6 @@ export default function Home() {
       const useMockDataRuntime = process.env.NEXT_PUBLIC_USE_MOCK_DATA === 'true';
 
       if (useMockDataRuntime) {
-        console.log("Using mock data for development.");
         setSensors(mockSensorData);
         setLoading(false);
         return;
@@ -69,8 +67,10 @@ export default function Home() {
 
   return (
     <div className="font-sans">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl font-semibold mb-4 text-teal-400">Sensor Metadata</h2>
+        {/* Removed max-w-4xl and mx-auto for consistent alignment */}
+        <div>
+          {/* Changed "Sensor Metadata" to "Sensor Details" */}
+          <h2 className="text-2xl font-semibold mb-4 text-amber-400">Sensor Details</h2>
           {loading && <p className="text-center text-lg">Loading sensor data...</p>}
           {error && <p className="text-center text-red-400 bg-gray-800 p-4 rounded-lg shadow-lg">{error}</p>}
           {!loading && !error && (
@@ -78,11 +78,11 @@ export default function Home() {
                 <table className="min-w-full bg-gray-800 rounded-lg shadow">
                     <thead>
                         <tr className="bg-gray-700">
-                            <th className="p-3 text-left text-sm font-semibold text-teal-300 uppercase tracking-wider">Sensor ID</th>
-                            <th className="p-3 text-left text-sm font-semibold text-teal-300 uppercase tracking-wider">Position X (ft)</th>
-                            <th className="p-3 text-left text-sm font-semibold text-teal-300 uppercase tracking-wider">Position Y (ft)</th>
-                            <th className="p-3 text-left text-sm font-semibold text-teal-300 uppercase tracking-wider">Board</th>
-                            <th className="p-3 text-left text-sm font-semibold text-teal-300 uppercase tracking-wider">Sunlight Sensor</th>
+                            <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Sensor ID</th>
+                            <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Position X (ft)</th>
+                            <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Position Y (ft)</th>
+                            <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Board</th>
+                            <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Sunlight Sensor</th>
                         </tr>
                     </thead>
                     <tbody>
