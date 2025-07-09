@@ -15,3 +15,5 @@ sensor_target_api_domain_name = "sensors.example.com"
 secret_bearer_token = "my-secret-token"
 
 sensor_metadata_filename = "sensor_metadata.json"
+
+sensor_set_metadata_filename = "sensor_set_metadata.json"

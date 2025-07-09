@@ -24,15 +24,28 @@ variable "sensor_metadata_filename" {
   description = "Name of the JSON file containing sensor metadata."
 }
 
-# Load initial data from the JSON file
-locals {
-  sensor_metadata_path   = "${path.module}/${var.sensor_metadata_filename}"
-  sensor_metadata_list   = fileexists(local.sensor_metadata_path) ? jsondecode(file(local.sensor_metadata_path)) : []
-  sensor_metadata_exists = length(local.sensor_metadata_list) > 0
+variable "sensor_set_metadata_filename" {
+  type        = string
+  description = "The path to the JSON file containing sensor set metadata."
+}
 
-  # Convert the list of JSON objects into a single string of newline-delimited JSON,
-  # which is the format required for BigQuery load jobs.
-  sensor_metadata_ndjson = join("\n", [
-    for obj in local.sensor_metadata_list : jsonencode(obj)
-  ])
+# Define a map of all metadata filenames. This makes it easy to add more in the future.
+locals {
+  metadata_filenames = {
+    sensor     = { filename = var.sensor_metadata_filename },
+    sensor_set = { filename = var.sensor_set_metadata_filename }
+  }
+
+  # Use a for_each loop to dynamically generate locals for each metadata type.
+  # This avoids duplicating the file loading and processing logic.
+  metadata_processing = {
+    for key, config in local.metadata_filenames : key => {
+      path   = "${path.module}/${config.filename}"
+      list   = fileexists("${path.module}/${config.filename}") ? jsondecode(file("${path.module}/${config.filename}")) : []
+      exists = length(fileexists("${path.module}/${config.filename}") ? jsondecode(file("${path.module}/${config.filename}")) : []) > 0
+      ndjson = join("\n", [
+        for obj in (fileexists("${path.module}/${config.filename}") ? jsondecode(file("${path.module}/${config.filename}")) : []) : jsonencode(obj)
+      ])
+    }
+  }
 }

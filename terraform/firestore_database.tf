@@ -28,9 +28,7 @@ resource "google_firebaserules_ruleset" "default_firestore_rules" {
   project = var.gcp_project_id
   source {
     files {
-      # The name is arbitrary but required.
       name    = "firestore.rules"
-      # The content of your rules file.
       content = <<-EOT
         rules_version = '2';
         service cloud.firestore {
@@ -39,10 +37,7 @@ resource "google_firebaserules_ruleset" "default_firestore_rules" {
             match /{document=**} {
               allow read, write: if false;
             }
-
             // Allow public reads on the 'sensor_metadata' collection for your app.
-            // In a real app, you would likely restrict this further,
-            // for example: 'if request.auth != null;' for authenticated users.
             match /sensor_metadata/{sensorId} {
               allow read: if true;
               allow write: if false; // Disallow public writes
@@ -51,13 +46,15 @@ resource "google_firebaserules_ruleset" "default_firestore_rules" {
               allow read: if true;
               allow write: if false; // Disallow public writes
             }
+            match /sensor_set_metadata/{setId} {
+              allow read: if true;
+              allow write: if false; // Disallow public writes
+            }
           }
         }
       EOT
     }
   }
-
-  # This resource needs the firebaserules API to be enabled.
   depends_on = [
     google_project_service.apis
   ]
@@ -79,38 +76,41 @@ resource "google_firebaserules_release" "default_firestore_rules_release" {
     google_firebaserules_ruleset.default_firestore_rules,
   ]
 }
-
-# Create a Firestore document for each object in the sensor_metadata.json file.
+# Create Firestore documents for sensor metadata
 resource "google_firestore_document" "sensor_metadata" {
-  # Use for_each to loop through the list of sensor objects from the JSON file.
-  # We convert the list to a map where the key is the index of the element.
-  for_each = { for i, sensor in local.sensor_metadata_list : i => sensor }
+  for_each = {
+    for doc in local.metadata_processing.sensor.list : doc.sensor_id => doc
+  }
 
-  project    = var.gcp_project_id
-  collection = "sensor_metadata"
-
-  # NOTE: The document ID must be unique. Since 'sensor_id' can be duplicated
-  # in the source file, we append the map key (the original array index)
-  # to ensure a unique ID for each document.
-  document_id = "${each.value.sensor_id}-${each.key}"
-
-  # The 'fields' argument expects a JSON string where each value is wrapped
-  # in an object specifying its type (e.g., {"stringValue": "some_text"}).
-  # We explicitly define the structure for each field from the source JSON.
+  project     = var.gcp_project_id
+  database    = google_firestore_database.database.name
+  collection  = "sensor_metadata"
+  document_id = each.key
   fields = jsonencode({
-    "sensor_id"             = { "stringValue" : each.value.sensor_id },
-    "position_x_ft"         = { "doubleValue" : each.value.position_x_ft },
-    "position_y_ft"         = { "doubleValue" : each.value.position_y_ft },
-    "board"                 = { "stringValue" : each.value.board },
-    "has_display"           = { "booleanValue" : each.value.has_display },
-    "sunlight_sensor_model" = { "stringValue" : each.value.sunlight_sensor_model },
-    "display_model"         = { "stringValue" : each.value.display_model },
-    "wifi_antenna"          = { "stringValue" : each.value.wifi_antenna }
+    "sensor_id"             = { "stringValue" = each.value.sensor_id },
+    "position_x_ft"         = { "doubleValue" = each.value.position_x_ft },
+    "position_y_ft"         = { "doubleValue" = each.value.position_y_ft },
+    "board"                 = { "stringValue" = each.value.board },
+    "has_display"           = { "booleanValue" = each.value.has_display },
+    "sunlight_sensor_model" = { "stringValue" = each.value.sunlight_sensor_model },
+    "display_model"         = { "stringValue" = each.value.display_model },
+    "wifi_antenna"          = { "stringValue" = each.value.wifi_antenna },
+    "sensor_set"            = try(each.value.sensor_set, null) == null ? { "nullValue" = null } : { "stringValue" = each.value.sensor_set }
   })
-
-  # Ensure the Firestore database is ready before we try to add documents.
-  depends_on = [
-    google_firestore_database.database,
-  ]
 }
 
+# Create Firestore documents for sensor set metadata
+resource "google_firestore_document" "sensor_set_metadata" {
+  for_each = {
+    for doc in local.metadata_processing.sensor_set.list : doc.sensor_set_id => doc
+  }
+
+  project     = var.gcp_project_id
+  database    = google_firestore_database.database.name
+  collection  = "sensor_set_metadata"
+  document_id = each.key
+  fields = jsonencode({
+    "sensor_set_id" = { "stringValue" = each.value.sensor_set_id },
+    "timezone"      = { "stringValue" = each.value.timezone }
+  })
+}

@@ -88,7 +88,8 @@ def main():
             data = {
                 "light_intensity": light_intensity,
                 "sensor_id": sensor_id,
-                "timestamp": iso_timestamp
+                "timestamp": iso_timestamp,
+                "sensor_set": "test"
             }
 
             try:

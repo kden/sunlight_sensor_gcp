@@ -46,6 +46,7 @@ env/
 # Local Terraform directories
 .terraform/
 terraform/sensor_metadata.json
+terraform/sensor_set_metadata.json
 
 # State files - these can contain sensitive data and are specific to an environment.
 # It's best practice to use a remote backend for state files instead of committing them.
@@ -77,3 +78,5 @@ terraform.rc
 # Temporary directory used for zipping source code in our Terraform script.
 .tmp/
 **/*_source.zip
+**/junit.xml
+**/pglite-debug.log
