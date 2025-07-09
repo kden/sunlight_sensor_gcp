@@ -28,7 +28,9 @@ jobs:
       - name: Install dependencies
         run: npm --prefix ./sunlight_web_app install
 
-      # NEW STEP: Parse the JSON secret and set individual env vars
+      - name: Run Unit Tests
+        run: npm --prefix ./sunlight_web_app run test
+
       - name: Set up Firebase Environment Variables
         id: set_firebase_env
         run: |
@@ -41,7 +43,6 @@ jobs:
           echo "appId=$(echo '${{ secrets.REACT_APP_FIREBASE_CONFIG }}' | jq -r .appId)" >> $GITHUB_OUTPUT
           echo "measurementId=$(echo '${{ secrets.REACT_APP_FIREBASE_CONFIG }}' | jq -r .measurementId)" >> $GITHUB_OUTPUT
 
-      # UPDATED STEP: Use the new env vars during the build
       - name: Build React App
         run: npm --prefix ./sunlight_web_app run build
         env:
