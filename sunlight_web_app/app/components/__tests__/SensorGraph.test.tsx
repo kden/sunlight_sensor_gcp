@@ -5,15 +5,18 @@ import SensorGraph from '../SensorGraph';
 
 // --- MOCKS ---
 
+// Explicitly mock the firebase module using the same alias the component uses
 jest.mock('@/app/firebase', () => ({
-  app: {},
+  app: {}, // Provide a dummy app object for the test environment
 }));
 
+// Define mock implementations for Firestore functions
 const mockGetDocs = jest.fn();
 const mockCollection = jest.fn();
 const mockQuery = jest.fn();
 const mockWhere = jest.fn();
 
+// Mock Firebase services using a factory function
 jest.mock('firebase/firestore', () => {
   const mockTimestamp = {
     fromDate: (date: Date) => ({
@@ -23,13 +26,15 @@ jest.mock('firebase/firestore', () => {
   return {
     getFirestore: jest.fn(),
     collection: () => mockCollection(),
-    getDocs: (q: any) => mockGetDocs(q),
+    // Use 'unknown' type to satisfy the linter instead of 'any'
+    getDocs: (q: unknown) => mockGetDocs(q),
     query: () => mockQuery(),
     where: () => mockWhere(),
     Timestamp: mockTimestamp,
   };
 });
 
+// Mock Recharts
 jest.mock('recharts', () => {
     const OriginalRecharts = jest.requireActual('recharts');
     return {
@@ -50,6 +55,7 @@ jest.mock('recharts', () => {
 
 describe('SensorGraph', () => {
   beforeEach(() => {
+    // Clear mock history before each test
     mockGetDocs.mockClear();
   });
 
@@ -59,6 +65,9 @@ describe('SensorGraph', () => {
       { data: () => ({ sensor_id: 'sensor_b' }) },
     ],
   };
+
+  // Define a type for the mock document to avoid using 'any'
+  type MockDoc = { data: () => Record<string, unknown> };
 
   const mockSensorReadings = {
     docs: [
@@ -70,7 +79,8 @@ describe('SensorGraph', () => {
         }),
       },
     ],
-    forEach: function(callback: (doc: any) => void) {
+    // Use a specific type for the callback parameter to satisfy the linter
+    forEach: function(callback: (doc: MockDoc) => void) {
       this.docs.forEach(callback);
     }
   };
@@ -96,7 +106,8 @@ describe('SensorGraph', () => {
   test('displays "no data" message when no readings are found', async () => {
     mockGetDocs
       .mockResolvedValueOnce(mockSensorMetadata)
-      .mockResolvedValueOnce({ docs: [], forEach: (cb: any) => [] });
+      // Prefix unused variable with an underscore and provide a type for the callback
+      .mockResolvedValueOnce({ docs: [], forEach: (_cb: (doc: MockDoc) => void) => [] });
 
     render(<SensorGraph />);
 
