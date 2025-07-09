@@ -18,6 +18,10 @@ const config = {
     '^@/app/(.*)$': '<rootDir>/app/$1',
     '^@/components/(.*)$': '<rootDir>/app/components/$1',
   },
+  reporters: [
+    'default',
+    ['jest-junit', { outputDirectory: 'reports', outputName: 'junit.xml' }],
+  ],
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
