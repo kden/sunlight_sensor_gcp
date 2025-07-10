@@ -9,12 +9,11 @@ Apache 2.0 Licensed as described in the file LICENSE
 """
 import base64
 import os
+from datetime import timezone
 from google.cloud import bigquery, firestore
 
-# Define constants that don't change
 DATASET_ID = "sunlight_data"
 SOURCE_TABLE_ID = "downsampled_sunlight_data"
-
 
 def export_to_firestore(event, context):
     """
@@ -49,7 +48,8 @@ def export_to_firestore(event, context):
         SELECT
             observation_minute,
             sensor_id,
-            smoothed_light_intensity
+            smoothed_light_intensity,
+            sensor_set
         FROM
             `{project_id}.{DATASET_ID}.{SOURCE_TABLE_ID}`
         WHERE
@@ -80,7 +80,8 @@ def export_to_firestore(event, context):
         batch.set(doc_ref, {
             "sensor_id": row.sensor_id,
             "observation_minute": row.observation_minute,
-            "smoothed_light_intensity": row.smoothed_light_intensity
+            "smoothed_light_intensity": row.smoothed_light_intensity,
+            "sensor_set": row.sensor_set
         })
 
         # Keep track of the latest timestamp processed in this run
@@ -92,7 +93,10 @@ def export_to_firestore(event, context):
 
     # --- 4. Update the last processed timestamp in Firestore for the next run ---
     if max_new_timestamp:
-        new_timestamp_str = max_new_timestamp.isoformat() + "Z"
+        # FIXED: Ensure the timestamp is timezone-aware and format to ISO 8601 with 'Z'
+        if max_new_timestamp.tzinfo is None:
+            max_new_timestamp = max_new_timestamp.replace(tzinfo=timezone.utc)
+        new_timestamp_str = max_new_timestamp.isoformat().replace('+00:00', 'Z')
         metadata_ref.set({
             "last_processed_timestamp_utc": new_timestamp_str,
             "rows_processed_in_last_run": len(rows)

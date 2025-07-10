@@ -9,7 +9,7 @@ Apache 2.0 Licensed as described in the file LICENSE
 """
 import unittest
 from unittest import mock
-from datetime import datetime
+from datetime import datetime, timezone # Import timezone
 import os
 
 # Add the 'src' directory to the Python path to allow imports for local testing.
@@ -48,22 +48,22 @@ class TestExportToFirestore(unittest.TestCase):
         mock_rows = [
             MockBigQueryRow({
                 "sensor_id": "test_sensor_1",
-                "observation_minute": datetime.fromisoformat("2025-07-07T13:00:00"),
-                "smoothed_light_intensity": 100.0
+                # FIXED: Use timezone-aware datetime objects for mocks
+                "observation_minute": datetime(2025, 7, 7, 13, 0, 0, tzinfo=timezone.utc),
+                "smoothed_light_intensity": 100.0,
+                "sensor_set": "test"
             }),
             MockBigQueryRow({
                 "sensor_id": "test_sensor_1",
-                "observation_minute": datetime.fromisoformat("2025-07-07T13:01:00"),
-                "smoothed_light_intensity": 101.5
+                # FIXED: Use timezone-aware datetime objects for mocks
+                "observation_minute": datetime(2025, 7, 7, 13, 1, 0, tzinfo=timezone.utc),
+                "smoothed_light_intensity": 101.5,
+                "sensor_set": "test"
             })
         ]
 
-        # Use MagicMock to handle the __iter__ magic method.
-        mock_query_job = mock.MagicMock()
-        mock_query_job.result.return_value = mock_rows
-        # This line makes the mock object itself iterable, just like a real QueryJob.
-        mock_query_job.__iter__.return_value = iter(mock_rows)
-        mock_bigquery_client.return_value.query.return_value = mock_query_job
+        # This setup correctly mocks the iterable result from query_job
+        mock_bigquery_client.return_value.query.return_value = mock_rows
 
         # Mock Firestore batch
         mock_batch = mock.Mock()

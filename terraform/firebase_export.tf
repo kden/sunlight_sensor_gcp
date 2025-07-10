@@ -101,7 +101,10 @@ resource "google_storage_bucket" "bq_to_fb_function_source_bucket" {
 }
 
 resource "google_storage_bucket_object" "bq_to_fb_function_source_object" {
-  name   = "firebase_export_source.zip"
+  # Appending the MD5 hash of the archive to the object name.
+  # This creates a new, unique object name whenever the source code changes,
+  # which forces Terraform to redeploy the Cloud Function.
+  name   = "firebase_export_source-${data.archive_file.firebase_export_function_source.output_md5}.zip"
   bucket = google_storage_bucket.bq_to_fb_function_source_bucket.name
   source = data.archive_file.firebase_export_function_source.output_path
 }
