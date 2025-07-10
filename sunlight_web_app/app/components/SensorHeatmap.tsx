@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { getFirestore, collection, getDocs, query, where, Timestamp, DocumentData } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { app } from '@/app/firebase';
 
 // --- Interfaces for our data structures ---
