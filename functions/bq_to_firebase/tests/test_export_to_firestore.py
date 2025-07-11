@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from main import export_to_firestore
+from functions.bq_to_firebase.src.main import export_to_firestore
 
 
 # A helper class to simulate the objects returned by the BigQuery client

@@ -82,29 +82,27 @@ resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
   params = {
     destination_table_name_template = google_bigquery_table.transformed_sunlight_table.table_id
     write_disposition               = "WRITE_APPEND"
+    # MODIFICATION: The query now unnests the JSON array from the 'data' column
     query                           = <<-EOF
       WITH ParsedData AS (
-        -- First, parse the raw JSON data and cast types
+        -- First, parse and unnest the raw JSON data
         SELECT
-          CAST(JSON_EXTRACT_SCALAR(data, '$.light_intensity') AS FLOAT64) as light_intensity,
-          JSON_EXTRACT_SCALAR(data, '$.sensor_id') as sensor_id,
-          CAST(JSON_EXTRACT_SCALAR(data, '$.timestamp') AS TIMESTAMP) as timestamp,
-          ingestion_time
+          CAST(JSON_EXTRACT_SCALAR(reading, '$.light_intensity') AS FLOAT64) as light_intensity,
+          JSON_EXTRACT_SCALAR(reading, '$.sensor_id') as sensor_id,
+          CAST(JSON_EXTRACT_SCALAR(reading, '$.timestamp') AS TIMESTAMP) as timestamp,
+          source_table.ingestion_time
         FROM
-          `${google_bigquery_table.sunlight_table.project}.${google_bigquery_table.sunlight_table.dataset_id}.${google_bigquery_table.sunlight_table.table_id}`
+          `${google_bigquery_table.sunlight_table.project}.${google_bigquery_table.sunlight_table.dataset_id}.${google_bigquery_table.sunlight_table.table_id}` AS source_table,
+          UNNEST(JSON_QUERY_ARRAY(source_table.data)) as reading -- Unnest the array of readings
         WHERE
           -- Process records incrementally based on ingestion time
-          ingestion_time > IFNULL(
+          source_table.ingestion_time > IFNULL(
             (
               SELECT MAX(t.ingestion_time)
               FROM `${google_bigquery_table.transformed_sunlight_table.project}.${google_bigquery_table.transformed_sunlight_table.dataset_id}.${google_bigquery_table.transformed_sunlight_table.table_id}` AS t
             ),
             TIMESTAMP('1970-01-01 00:00:00 UTC')
           )
-          -- Ensure essential fields are not null before processing
-          AND JSON_EXTRACT_SCALAR(data, '$.light_intensity') IS NOT NULL
-          AND JSON_EXTRACT_SCALAR(data, '$.sensor_id') IS NOT NULL
-          AND JSON_EXTRACT_SCALAR(data, '$.timestamp') IS NOT NULL
       )
       -- Final selection, joining with sensor metadata to add the sensor_set
       SELECT
@@ -119,6 +117,10 @@ resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
         `${google_bigquery_table.sensor_metadata_table.project}.${google_bigquery_table.sensor_metadata_table.dataset_id}.${google_bigquery_table.sensor_metadata_table.table_id}` AS meta
       ON
         pd.sensor_id = meta.sensor_id
+      -- Ensure essential fields are not null after parsing
+      WHERE pd.light_intensity IS NOT NULL
+        AND pd.sensor_id IS NOT NULL
+        AND pd.timestamp IS NOT NULL
     EOF
   }
 

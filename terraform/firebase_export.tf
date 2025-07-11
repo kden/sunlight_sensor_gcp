@@ -39,7 +39,7 @@ resource "google_cloud_scheduler_job" "bq_to_firebase_scheduler" {
   project   = var.gcp_project_id
   region    = var.region
   name      = "bq-to-firebase-hourly-job"
-  schedule  = "0 * * * *" # Runs at the top of every hour
+  schedule  = "* * * * *" # Runs at the top of every hour
   time_zone = "UTC"
 
   pubsub_target {
