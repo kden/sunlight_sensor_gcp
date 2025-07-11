@@ -105,6 +105,18 @@ resource "google_bigquery_table" "sensor_set_table" {
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "The IANA timezone name for the sensor set (e.g., 'America/Chicago')."
+  },
+  {
+    "name": "latitude",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Latitude of the sensor set site."
+  },
+  {
+    "name": "longitude",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Longitude of the sensor set site."
   }
 ]
 EOF

@@ -112,5 +112,7 @@ resource "google_firestore_document" "sensor_set_metadata" {
   fields = jsonencode({
     "sensor_set_id" = { "stringValue" = each.value.sensor_set_id },
     "timezone"      = { "stringValue" = each.value.timezone }
+    "latitude"      = { "doubleValue" = each.value.latitude }
+    "longitude"     = { "doubleValue" = each.value.longitude }
   })
 }
