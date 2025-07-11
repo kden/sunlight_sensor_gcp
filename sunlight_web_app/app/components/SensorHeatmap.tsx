@@ -3,6 +3,20 @@
 import { useState, useEffect } from 'react';
 import { getFirestore, collection, getDocs, query, where, Timestamp } from 'firebase/firestore';
 import { app } from '@/app/firebase';
+import {
+  ResponsiveContainer,
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Label,
+  Cell,
+  TooltipProps
+} from 'recharts';
+import { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
+
 
 // --- Interfaces for our data structures ---
 interface SensorMetadata {
@@ -16,6 +30,14 @@ interface ReadingsForDay {
     [sensorId: string]: number; // light intensity
   };
 }
+
+// --- Chart Data Point ---
+interface ChartDataPoint {
+    x: number;
+    y: number;
+    z: number | undefined; // Light Intensity
+}
+
 
 // --- Constants for the yard dimensions ---
 const YARD_LENGTH = 133;
@@ -34,6 +56,8 @@ const SensorHeatmap = () => {
   const [readings, setReadings] = useState<ReadingsForDay>({});
   const [timestamps, setTimestamps] = useState<number[]>([]);
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
+  const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -103,6 +127,30 @@ const SensorHeatmap = () => {
     fetchData();
   }, [selectedDate]);
 
+  // --- Effect to transform data for Recharts ---
+  useEffect(() => {
+    if (timestamps.length === 0 || sensorMetadata.length === 0) {
+        setChartData([]);
+        return;
+    }
+
+    const currentTimestamp = timestamps[currentTimeIndex];
+    const currentReadings = readings[currentTimestamp] || {};
+
+    const newChartData = sensorMetadata.map(sensor => ({
+        // X-axis on chart corresponds to Y-position in yard
+        x: sensor.position_y_ft,
+        // Y-axis on chart corresponds to X-position in yard
+        y: sensor.position_x_ft,
+        // Z-value for intensity (used for color and tooltip)
+        z: currentReadings[sensor.id]
+    }));
+
+    setChartData(newChartData);
+
+  }, [currentTimeIndex, readings, sensorMetadata, timestamps]);
+
+
   const calculateFillColor = (intensity: number | undefined) => {
     if (intensity === undefined) {
       return 'hsl(0, 0%, 20%)'; // Dim gray for sensors with no data
@@ -112,8 +160,29 @@ const SensorHeatmap = () => {
     return `hsl(60, 100%, ${lightness}%)`;
   };
 
-  const currentTimestamp = timestamps[currentTimeIndex];
-  const currentReadings = readings[currentTimestamp] || {};
+  const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
+    if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        return (
+            <div className="bg-gray-800 text-white p-2 border border-gray-600 rounded">
+                <p>{`Position: (${data.y}, ${data.x})`}</p>
+                <p>{`Intensity: ${data.z ?? 'N/A'}`}</p>
+            </div>
+        );
+    }
+    return null;
+  };
+
+  // FIXED: Custom shape function now also handles the fill color.
+  const renderCircle = (props: any) => {
+    const { cx, cy, payload } = props;
+    // The color is now set directly here, using the intensity from the data payload
+    const fillColor = calculateFillColor(payload.z);
+    return (
+      <circle cx={cx} cy={cy} r={10} fill={fillColor} />
+    );
+  };
+
 
   return (
     <div>
@@ -133,29 +202,51 @@ const SensorHeatmap = () => {
 
       {!loading && !error && timestamps.length > 0 && (
         <div className="w-full">
-          {/* Heatmap Visualization */}
-          <div className="relative w-full aspect-[133/33] bg-gray-800 border-2 border-gray-600 rounded-lg overflow-hidden">
-             <svg
-              viewBox={`0 0 ${YARD_LENGTH} ${YARD_WIDTH}`}
-              preserveAspectRatio="xMidYMid meet"
-              className="w-full h-full"
-            >
-              {sensorMetadata.map(sensor => (
-                <circle
-                  key={sensor.id}
-                  cx={sensor.position_y_ft}
-                  cy={YARD_WIDTH - sensor.position_x_ft}
-                  r="2" // Radius of the sensor mark
-                  fill={calculateFillColor(currentReadings[sensor.id])}
-                />
-              ))}
-            </svg>
+          {/* Container to enforce aspect ratio */}
+          <div className="w-full relative" style={{aspectRatio: `${YARD_LENGTH}/${YARD_WIDTH}`}}>
+             <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart
+                    margin={{ top: 20, right: 20, bottom: 40, left: 40 }}
+                >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
+
+                    <XAxis
+                        type="number"
+                        dataKey="x"
+                        name="Yard Length"
+                        domain={[0, YARD_LENGTH]}
+                        ticks={[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 133]}
+                    >
+                        <Label value="Yard Length (feet)" offset={-30} position="insideBottom" />
+                    </XAxis>
+
+                    <YAxis
+                        type="number"
+                        dataKey="y"
+                        name="Yard Width"
+                        domain={[0, YARD_WIDTH]}
+                        reversed={true}
+                        ticks={[0, 10, 20, 33]}
+                    >
+                        <Label value="Yard Width (feet)" angle={-90} offset={-25} position="insideLeft" />
+                    </YAxis>
+
+                    <Tooltip cursor={{ strokeDasharray: '3 3' }} content={<CustomTooltip />}/>
+
+                    {/*
+                      We now only use the `shape` prop and pass our custom function.
+                      The <Cell> components are no longer needed.
+                    */}
+                    <Scatter name="Sensors" data={chartData} shape={renderCircle} />
+
+                </ScatterChart>
+             </ResponsiveContainer>
           </div>
 
           {/* Time Slider Controls */}
           <div className="mt-4">
             <label htmlFor="time-slider" className="block mb-2">
-              Time: {currentTimestamp ? new Date(currentTimestamp).toLocaleTimeString() : 'N/A'}
+              Time: {timestamps[currentTimeIndex] ? new Date(timestamps[currentTimeIndex]).toLocaleTimeString() : 'N/A'}
             </label>
             <input
               id="time-slider"
