@@ -151,6 +151,12 @@ resource "google_storage_bucket_object" "metadata_ndjson" {
   content  = each.value.ndjson
 }
 
+data "archive_file" "sensor_set_metadata_archive" {
+  type        = "zip"
+  source_file = "${path.module}/sensor_set_metadata.json"
+  output_path = "${path.module}/../.tmp/sensor_set_metadata.zip"
+}
+
 # Job to load data from GCS into the corresponding BigQuery tables.
 resource "google_bigquery_job" "load_metadata" {
   for_each = {
@@ -173,6 +179,7 @@ resource "google_bigquery_job" "load_metadata" {
     write_disposition = "WRITE_TRUNCATE"
     autodetect        = false
   }
+
   depends_on = [
     google_storage_bucket_object.metadata_ndjson,
   ]

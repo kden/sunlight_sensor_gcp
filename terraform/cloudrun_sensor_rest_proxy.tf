@@ -1,4 +1,4 @@
-# terraform/cloudrun.tf
+# terraform/cloudrun_sensor_rest_proxy.tf
 
 # --- Variables ---
 variable "sensor_target_api_domain_name" {
@@ -14,7 +14,7 @@ variable "secret_bearer_token" {
 
 
 # --- Create a GCS Bucket to Store the Service's Source Code ---
-resource "google_storage_bucket" "rest_proxy_cloudrun_source_bucket" {
+resource "google_storage_bucket" "cloudrun_function_source_shared_bucket" {
   project      = var.gcp_project_id
   name         = "${var.gcp_project_id}-cloudrun-source"
   location     = var.region
@@ -24,14 +24,14 @@ resource "google_storage_bucket" "rest_proxy_cloudrun_source_bucket" {
 
 data "archive_file" "rest_sensor_api_to_pubsub_source_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../rest_sensor_api_to_pubsub/src"
+  source_dir  = "${path.module}/../functions/rest_sensor_api_to_pubsub/src"
   output_path = "${path.module}/../.tmp/rest_sensor_api_to_pubsub_source.zip"
 }
 
 # --- Upload the Zipped Source Code to the GCS Bucket ---
 resource "google_storage_bucket_object" "source_archive" {
   name   = "rest_sensor_api_to_pubsub_source.zip#${data.archive_file.rest_sensor_api_to_pubsub_source_zip.output_md5}"
-  bucket = google_storage_bucket.rest_proxy_cloudrun_source_bucket.name
+  bucket = google_storage_bucket.cloudrun_function_source_shared_bucket.name
   source = data.archive_file.rest_sensor_api_to_pubsub_source_zip.output_path
 }
 
@@ -48,7 +48,7 @@ resource "google_cloudfunctions2_function" "proxy_function" {
     entry_point = "proxy_to_pubsub"
     source {
       storage_source {
-        bucket = google_storage_bucket.rest_proxy_cloudrun_source_bucket.name
+        bucket = google_storage_bucket.cloudrun_function_source_shared_bucket.name
         object = google_storage_bucket_object.source_archive.name
       }
     }

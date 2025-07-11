@@ -34,13 +34,15 @@ resource "google_pubsub_topic" "bq_to_firebase_trigger" {
   name    = "bq-to-firebase-trigger"
 }
 
-# 4. Cloud Scheduler to run the job every hour
+# 4. Cloud Scheduler to run the job
 resource "google_cloud_scheduler_job" "bq_to_firebase_scheduler" {
   project   = var.gcp_project_id
   region    = var.region
-  name      = "bq-to-firebase-hourly-job"
-  schedule  = "* * * * *" # Runs at the top of every hour
+  name      = "bq-to-firebase-job"
+  schedule  = "* * * * *" # Runs every minute
   time_zone = "UTC"
+  description = "Transfers sensor data from BigQuery to Firebase."
+
 
   pubsub_target {
     topic_name = google_pubsub_topic.bq_to_firebase_trigger.id

@@ -14,9 +14,9 @@ import json
 # Add the source directory to the Python path to allow for absolute imports
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from rest_sensor_api_to_pubsub.src.main import proxy_to_pubsub
+from functions.rest_sensor_api_to_pubsub.src.main import proxy_to_pubsub
 
 # Mock the Flask request object to simulate HTTP requests
 class MockRequest:
@@ -31,7 +31,7 @@ class MockRequest:
         return self.json_data
 
 class TestProxyToPubSub(unittest.TestCase):
-    @patch('rest_sensor_api_to_pubsub.src.main.publisher', new_callable=MagicMock)
+    @patch('functions.rest_sensor_api_to_pubsub.src.main.publisher', new_callable=MagicMock)
     @patch.dict('os.environ', {
         'GCP_PROJECT': 'test-project',
         'TOPIC_ID': 'test-topic',
