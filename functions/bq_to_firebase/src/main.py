@@ -56,6 +56,7 @@ def export_to_firestore(event, context):
             observation_minute > TIMESTAMP("{last_processed_ts}")
         ORDER BY
             observation_minute
+        LIMIT 500
     """
 
     print("Executing BigQuery query...")
@@ -93,7 +94,6 @@ def export_to_firestore(event, context):
 
     # --- 4. Update the last processed timestamp in Firestore for the next run ---
     if max_new_timestamp:
-        # FIXED: Ensure the timestamp is timezone-aware and format to ISO 8601 with 'Z'
         if max_new_timestamp.tzinfo is None:
             max_new_timestamp = max_new_timestamp.replace(tzinfo=timezone.utc)
         new_timestamp_str = max_new_timestamp.isoformat().replace('+00:00', 'Z')

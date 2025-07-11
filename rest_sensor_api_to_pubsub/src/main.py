@@ -47,9 +47,9 @@ def proxy_to_pubsub(request):
         return ("Bad Request: Content-Type must be application/json.", 400)
 
     try:
-        data = request.get_json(silent=True)  # Use silent=True to return None on error
-        if data is None:
-            return ("Bad Request: JSON body is empty or malformed.", 400)
+        data = request.get_json(silent=True)
+        if not isinstance(data, list):
+            return ("Bad Request: JSON body must be a list of sensor readings.", 400)
     except Exception as e:
         print(f"ERROR: Could not parse JSON. Error: {e}")
         return ("Bad Request: Invalid JSON format.", 400)
