@@ -3,6 +3,8 @@
 # --- JetBrains/PyCharm IDE ---
 # Project-specific metadata and settings managed by the IDE.
 .idea/
+# subprojects
+**/.idea/
 
 # --- Python ---
 # Byte-compiled / optimized / C extension files

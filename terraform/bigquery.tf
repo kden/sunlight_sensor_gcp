@@ -105,6 +105,18 @@ resource "google_bigquery_table" "sensor_set_table" {
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "The IANA timezone name for the sensor set (e.g., 'America/Chicago')."
+  },
+  {
+    "name": "latitude",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Latitude of the sensor set site."
+  },
+  {
+    "name": "longitude",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Longitude of the sensor set site."
   }
 ]
 EOF
@@ -139,6 +151,12 @@ resource "google_storage_bucket_object" "metadata_ndjson" {
   content  = each.value.ndjson
 }
 
+data "archive_file" "sensor_set_metadata_archive" {
+  type        = "zip"
+  source_file = "${path.module}/sensor_set_metadata.json"
+  output_path = "${path.module}/../.tmp/sensor_set_metadata.zip"
+}
+
 # Job to load data from GCS into the corresponding BigQuery tables.
 resource "google_bigquery_job" "load_metadata" {
   for_each = {
@@ -161,6 +179,7 @@ resource "google_bigquery_job" "load_metadata" {
     write_disposition = "WRITE_TRUNCATE"
     autodetect        = false
   }
+
   depends_on = [
     google_storage_bucket_object.metadata_ndjson,
   ]
