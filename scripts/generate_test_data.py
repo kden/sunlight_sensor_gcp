@@ -1,7 +1,7 @@
 """
 generate_test_data.py
 
-Generates a day's worth of per-minute light intensity data
+Generates a week's worth of per-minute light intensity data
 and sends it to a sensor API.
 The levels are based on a sine wave pattern to make an easily-recognizable
 continuous pattern.
