@@ -34,7 +34,7 @@ resource "google_firestore_index" "sunlight_readings_index" {
   # Define the fields and their order for the index.
   # The order of these blocks matters.
   fields {
-    field_path = "sensor_set"
+    field_path = "sensor_set_id"
     order      = "ASCENDING"
   }
 
@@ -57,8 +57,8 @@ resource "google_firebaserules_ruleset" "default_firestore_rules" {
             match /{document=**} {
               allow read, write: if false;
             }
-            // Allow public reads on the 'sensor_metadata' collection for your app.
-            match /sensor_metadata/{sensorId} {
+            // Allow public reads on the 'sensor' collection for your app.
+            match /sensor/{sensorId} {
               allow read: if true;
               allow write: if false; // Disallow public writes
             }
@@ -97,14 +97,14 @@ resource "google_firebaserules_release" "default_firestore_rules_release" {
   ]
 }
 # Create Firestore documents for sensor metadata
-resource "google_firestore_document" "sensor_metadata" {
+resource "google_firestore_document" "sensor" {
   for_each = {
     for doc in local.metadata_processing.sensor.list : doc.sensor_id => doc
   }
 
   project     = var.gcp_project_id
   database    = google_firestore_database.database.name
-  collection  = "sensor_metadata"
+  collection  = "sensor"
   document_id = each.key
   fields = jsonencode({
     "sensor_id"             = { "stringValue" = each.value.sensor_id },
@@ -115,7 +115,7 @@ resource "google_firestore_document" "sensor_metadata" {
     "sunlight_sensor_model" = { "stringValue" = each.value.sunlight_sensor_model },
     "display_model"         = { "stringValue" = each.value.display_model },
     "wifi_antenna"          = { "stringValue" = each.value.wifi_antenna },
-    "sensor_set"            = try(each.value.sensor_set, null) == null ? { "nullValue" = null } : { "stringValue" = each.value.sensor_set }
+    "sensor_set_id"            = try(each.value.sensor_set_id, null) == null ? { "nullValue" = null } : { "stringValue" = each.value.sensor_set_id }
   })
 }
 

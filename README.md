@@ -10,7 +10,7 @@ Requirements:
 terraform init
 
 
-pip install -r functions/bq_to_firebase/src/requirements.txt
+pip install -r functions/bq_to_firestore_sensors/src/requirements.txt
 ```
 
 To test all of the Python-based subprojects, like rest_sensor_api_to_pubsub

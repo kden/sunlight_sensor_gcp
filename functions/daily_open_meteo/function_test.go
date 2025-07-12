@@ -40,7 +40,7 @@ func TestWeatherer_MissingSensorSet(t *testing.T) {
 	}
 
 	// Check that the response body is correct.
-	expected := "Missing sensor_set parameter\n"
+	expected := "Missing sensor_set_id parameter\n"
 	if rr.Body.String() != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			rr.Body.String(), expected)

@@ -92,8 +92,8 @@ resource "google_cloud_scheduler_job" "invoke_daily_weather_importer" {
   # Configure the job to target an HTTP endpoint (our Cloud Function)
   http_target {
     # The URI of the Cloud Function to invoke.
-    # We append the sensor_set parameter here. The function will handle the date range.
-    uri = "${google_cloudfunctions2_function.open_meteo_daily_importer_function.service_config[0].uri}?sensor_set=test"
+    # We append the sensor_set_id parameter here. The function will handle the date range.
+    uri = "${google_cloudfunctions2_function.open_meteo_daily_importer_function.service_config[0].uri}?sensor_set_id=test"
     http_method = "POST" # POST is standard for scheduler-triggered functions
 
     # This block configures authentication. The scheduler will use the service

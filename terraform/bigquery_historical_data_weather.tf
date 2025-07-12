@@ -99,6 +99,18 @@ resource "google_bigquery_table" "daily_historical_weather" {
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "The source of the weather data."
+  },
+  {
+    "name": "sensor_set_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "The source of the weather data."
+  },
+  {
+    "name": "timezone",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "The source of the weather data."
   }
 ]
 EOF

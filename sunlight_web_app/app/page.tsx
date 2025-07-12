@@ -38,7 +38,7 @@ export default function Home() {
 
       try {
         const db = getFirestore(app);
-        const sensorsCollection = collection(db, 'sensor_metadata');
+        const sensorsCollection = collection(db, 'sensor');
         const sensorSnapshot = await getDocs(sensorsCollection);
 
         const sensorList: Sensor[] = sensorSnapshot.docs.map(doc => {

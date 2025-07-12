@@ -1,5 +1,5 @@
 """
-test_export_to_firestore.py
+test_export_sensors_to_firestore.py
 
 Unit tests for the export_to_firestore function.
 
@@ -17,7 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
-from functions.bq_to_firebase.src.main import export_to_firestore
+from functions.bq_to_firestore_sensors.src.main import export_sensors_to_firestore
 
 
 # A helper class to simulate the objects returned by the BigQuery client
@@ -51,14 +51,14 @@ class TestExportToFirestore(unittest.TestCase):
                 # FIXED: Use timezone-aware datetime objects for mocks
                 "observation_minute": datetime(2025, 7, 7, 13, 0, 0, tzinfo=timezone.utc),
                 "smoothed_light_intensity": 100.0,
-                "sensor_set": "test"
+                "sensor_set_id: "test"
             }),
             MockBigQueryRow({
                 "sensor_id": "test_sensor_1",
                 # FIXED: Use timezone-aware datetime objects for mocks
                 "observation_minute": datetime(2025, 7, 7, 13, 1, 0, tzinfo=timezone.utc),
                 "smoothed_light_intensity": 101.5,
-                "sensor_set": "test"
+                "sensor_set_id: "test"
             })
         ]
 
@@ -70,7 +70,7 @@ class TestExportToFirestore(unittest.TestCase):
         mock_firestore_client.return_value.batch.return_value = mock_batch
 
         # --- Call the function ---
-        result = export_to_firestore(event={}, context={})
+        result = export_sensors_to_firestore(event={}, context={})
 
         # --- Assertions ---
         # Assert BigQuery was called correctly

@@ -53,7 +53,7 @@ export const useSensorHeatmapData = (selectedDate: string, selectedSensorSet: st
         const db = getFirestore(app);
 
         // 1. Fetch sensor metadata (locations) for the selected set
-        const metaCollection = collection(db, 'sensor_metadata');
+        const metaCollection = collection(db, 'sensor');
         const metaQuery = query(metaCollection, where('sensor_set', '==', selectedSensorSet));
         const metaSnapshot = await getDocs(metaQuery);
 

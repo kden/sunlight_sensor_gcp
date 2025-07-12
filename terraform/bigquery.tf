@@ -17,10 +17,10 @@ resource "google_bigquery_dataset" "sunlight_dataset" {
 }
 
 # New table for sensor metadata
-resource "google_bigquery_table" "sensor_metadata_table" {
+resource "google_bigquery_table" "sensor_table" {
   project    = var.gcp_project_id
   dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
-  table_id   = "sensor_metadata"
+  table_id   = "sensor"
 
   schema = <<EOF
 [
@@ -73,7 +73,7 @@ resource "google_bigquery_table" "sensor_metadata_table" {
     "description": "The type of WiFi antenna"
   },
   {
-    "name": "sensor_set",
+    "name": "sensor_set_id",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "The set of sensors this metadata belongs to"
@@ -87,7 +87,7 @@ EOF
 resource "google_bigquery_table" "sensor_set_table" {
   # Reuse the project and dataset from your other resources
   project = google_pubsub_topic.sun_sensor_ingest.project
-  dataset_id = google_bigquery_table.sensor_metadata_table.dataset_id # Assuming the same dataset
+  dataset_id = google_bigquery_table.sensor_table.dataset_id # Assuming the same dataset
 
   table_id = "sensor_set"
 
@@ -173,7 +173,7 @@ resource "google_bigquery_job" "load_metadata" {
     destination_table {
       project_id = var.gcp_project_id
       dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
-      table_id   = "${each.key}_metadata" # Dynamically sets table to "sensor_metadata" or "sensor_set_metadata"
+      table_id   = "${each.key}_metadata" # Dynamically sets table to "sensor" or "sensor_set_metadata"
     }
     source_format     = "NEWLINE_DELIMITED_JSON"
     write_disposition = "WRITE_TRUNCATE"

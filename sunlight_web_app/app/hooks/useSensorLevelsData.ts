@@ -46,7 +46,7 @@ export const useSensorLevelsData = (selectedDate: string, selectedSensorSet: str
         const db = getFirestore(app);
 
         // 1. Fetch sensor IDs for the selected set
-        const sensorsCollection = collection(db, 'sensor_metadata');
+        const sensorsCollection = collection(db, 'sensor');
         const sensorQuery = query(sensorsCollection, where('sensor_set', '==', selectedSensorSet));
         const sensorSnapshot = await getDocs(sensorQuery);
         const fetchedSensorIds = sensorSnapshot.docs.map(doc => doc.data().sensor_id as string).filter(Boolean);

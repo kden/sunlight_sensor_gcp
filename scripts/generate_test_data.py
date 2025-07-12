@@ -80,7 +80,7 @@ def main():
                     "light_intensity": light_intensity,
                     "sensor_id": sensor_id,
                     "timestamp": iso_timestamp,
-                    "sensor_set": "test"
+                    "sensor_set_id": "test"
                 }
                 records.append(record)
 

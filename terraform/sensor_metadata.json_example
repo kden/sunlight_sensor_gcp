@@ -8,7 +8,7 @@
     "sunlight_sensor_model": "bh1750",
     "display_model": "ssd1306",
     "wifi_antenna": "external",
-    "sensor_set": "test"
+    "sensor_set_id": "test"
   },
   {
     "sensor_id": "test_sensor_1",
@@ -19,7 +19,7 @@
     "sunlight_sensor_model": "bh1750",
     "display_model": "ssd1306",
     "wifi_antenna": "pcb",
-    "sensor_set": "test"
+    "sensor_set_id": "test"
   },
   {
     "sensor_id": "test_sensor_2",
@@ -30,7 +30,7 @@
     "sunlight_sensor_model": "bh1750",
     "display_model": "ssd1306",
     "wifi_antenna": "pcb",
-    "sensor_set": "test"
+    "sensor_set_id": "test"
   },
   {
     "sensor_id": "test_sensor_3",
@@ -41,6 +41,6 @@
     "sunlight_sensor_model": "bh1750",
     "display_model": "ssd1306",
     "wifi_antenna": "pcb",
-    "sensor_set": "test"
+    "sensor_set_id": "test"
   }
 ]

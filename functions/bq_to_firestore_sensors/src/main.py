@@ -15,7 +15,7 @@ from google.cloud import bigquery, firestore
 DATASET_ID = "sunlight_data"
 SOURCE_TABLE_ID = "downsampled_sunlight_data"
 
-def export_to_firestore(event, context):
+def export_sensors_to_firestore(event, context):
     """
     Triggered by a Pub/Sub message. Fetches new data from BigQuery,
     aggregates it to 15-minute intervals, and writes it to Firestore.
@@ -81,7 +81,7 @@ def export_to_firestore(event, context):
             "observation_minute": row.observation_minute,
             # The value is now an average, so we round it for cleanliness
             "smoothed_light_intensity": round(row.smoothed_light_intensity),
-            "sensor_set": row.sensor_set
+            "sensor_set_id: row.sensor_set
         })
 
         if max_new_timestamp is None or row.observation_minute > max_new_timestamp:

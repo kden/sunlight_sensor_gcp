@@ -7,7 +7,7 @@ resource "google_bigquery_table" "downsampled_sunlight_table" {
     type  = "DAY"
     field = "observation_minute"
   }
-  clustering = ["sensor_id", "sensor_set"]
+  clustering = ["sensor_id", "sensor_set_id"]
 
   # UPDATED: Schema is now defined using a heredoc for consistency.
   schema = <<EOF
@@ -28,7 +28,7 @@ resource "google_bigquery_table" "downsampled_sunlight_table" {
     "mode": "NULLABLE"
   },
   {
-    "name": "sensor_set",
+    "name": "sensor_set_id",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "The set of sensors this metadata belongs to"
@@ -49,7 +49,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
   service_account_name   = google_service_account.bq_transfer_sa.email
 
   params = {
-    # UPDATED: The query now joins with metadata to include the sensor_set column.
+    # UPDATED: The query now joins with metadata to include the sensor_set_idcolumn.
     query = <<-EOT
     MERGE INTO `${var.gcp_project_id}.${var.dataset_id}.${google_bigquery_table.downsampled_sunlight_table.table_id}` AS T
     USING (
@@ -77,7 +77,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
           raw.timestamp,
           raw.sensor_id,
           raw.light_intensity,
-          raw.sensor_set -- Include sensor_set from the transformed table
+          raw.sensor_set_id-- Include sensor_set_idfrom the transformed table
         FROM
           `${var.gcp_project_id}.${var.dataset_id}.${google_bigquery_table.transformed_sunlight_table.table_id}` AS raw
         LEFT JOIN
@@ -100,7 +100,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
         GROUP BY
           observation_minute,
           sensor_id,
-          sensor_set
+          sensor_set_id
         UNION ALL
         SELECT
           s.last_data.observation_minute,
@@ -133,10 +133,9 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
         SELECT
           m.observation_minute,
           s.sensor_id,
-          s.sensor_set
-        FROM
+          s.sensor_set_id        FROM
           minute_series m
-          CROSS JOIN (SELECT DISTINCT sensor_id, sensor_set FROM new_raw_data) s
+          CROSS JOIN (SELECT DISTINCT sensor_id, sensor_set_idFROM new_raw_data) s
       ),
       data_gapped AS (
         SELECT
@@ -166,15 +165,14 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
         observation_minute,
         sensor_id,
         COALESCE(light_intensity, last_point.light_intensity) AS smoothed_light_intensity,
-        COALESCE(sensor_set, last_point.sensor_set) AS sensor_set
-      FROM
+        COALESCE(sensor_set, last_point.sensor_set) AS sensor_set_id      FROM
         gaps_with_boundaries
       WHERE last_point.light_intensity IS NOT NULL
 
     ) AS S
     ON T.observation_minute = S.observation_minute AND T.sensor_id = S.sensor_id
     WHEN MATCHED THEN
-      UPDATE SET T.smoothed_light_intensity = S.smoothed_light_intensity, T.sensor_set = S.sensor_set
+      UPDATE SET T.smoothed_light_intensity = S.smoothed_light_intensity, T.sensor_set_id= S.sensor_set_id
     WHEN NOT MATCHED BY TARGET THEN
       INSERT (observation_minute, sensor_id, smoothed_light_intensity, sensor_set)
       VALUES (observation_minute, sensor_id, smoothed_light_intensity, sensor_set);

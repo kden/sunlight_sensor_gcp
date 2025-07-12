@@ -38,7 +38,7 @@ resource "google_bigquery_table" "transformed_sunlight_table" {
     "defaultValueExpression": "CURRENT_TIMESTAMP()"
   },
   {
-    "name": "sensor_set",
+    "name": "sensor_set_id",
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "The set of sensors this metadata belongs to"
@@ -114,7 +114,7 @@ resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
       FROM
         ParsedData AS pd
       LEFT JOIN
-        `${google_bigquery_table.sensor_metadata_table.project}.${google_bigquery_table.sensor_metadata_table.dataset_id}.${google_bigquery_table.sensor_metadata_table.table_id}` AS meta
+        `${google_bigquery_table.sensor_table.project}.${google_bigquery_table.sensor_table.dataset_id}.${google_bigquery_table.sensor_table.table_id}` AS meta
       ON
         pd.sensor_id = meta.sensor_id
       -- Ensure essential fields are not null after parsing

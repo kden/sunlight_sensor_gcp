@@ -80,5 +80,6 @@ terraform.rc
 # Temporary directory used for zipping source code in our Terraform script.
 .tmp/
 **/*_source.zip
+**/functions/*/*.zip
 **/junit.xml
 **/pglite-debug.log
