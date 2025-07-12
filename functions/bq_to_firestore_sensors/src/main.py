@@ -81,7 +81,7 @@ def export_sensors_to_firestore(event, context):
             "observation_minute": row.observation_minute,
             # The value is now an average, so we round it for cleanliness
             "smoothed_light_intensity": round(row.smoothed_light_intensity),
-            "sensor_set_id: row.sensor_set
+            "sensor_set_id": row.sensor_set
         })
 
         if max_new_timestamp is None or row.observation_minute > max_new_timestamp:

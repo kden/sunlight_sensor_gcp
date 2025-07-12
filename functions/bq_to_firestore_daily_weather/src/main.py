@@ -77,16 +77,16 @@ def export_weather_to_firestore(event, context):
         row_dict = dict(row.items())
 
         # Ensure sensor_set and date are present to create a robust document ID.
-        sensor_set_id= row_dict.get("sensor_set_id)
+        sensor_set_id= row_dict.get("sensor_set_id")
         record_date = row_dict.get("date")
 
-        if not sensor_set_idor not record_date:
+        if not sensor_set_id or not record_date:
             print(f"Skipping row due to missing sensor_set_idor date: {row_dict}")
             continue
 
         # Create a unique document ID, e.g., "test_set_1_2025-07-12"
         # The date is converted to string to be part of the ID.
-        doc_id = f"{sensor_set}_{record_date.strftime('%Y-%m-%d')}"
+        doc_id = f"{sensor_set_id}_{record_date.strftime('%Y-%m-%d')}"
         doc_ref = firestore_client.collection(DESTINATION_COLLECTION).document(doc_id)
 
         # The entire row, including the new fields, is written to Firestore.

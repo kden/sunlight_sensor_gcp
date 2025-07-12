@@ -51,14 +51,14 @@ class TestExportToFirestore(unittest.TestCase):
                 # FIXED: Use timezone-aware datetime objects for mocks
                 "observation_minute": datetime(2025, 7, 7, 13, 0, 0, tzinfo=timezone.utc),
                 "smoothed_light_intensity": 100.0,
-                "sensor_set_id: "test"
+                "sensor_set_id": "test"
             }),
             MockBigQueryRow({
                 "sensor_id": "test_sensor_1",
                 # FIXED: Use timezone-aware datetime objects for mocks
                 "observation_minute": datetime(2025, 7, 7, 13, 1, 0, tzinfo=timezone.utc),
                 "smoothed_light_intensity": 101.5,
-                "sensor_set_id: "test"
+                "sensor_set_id": "test"
             })
         ]
 
