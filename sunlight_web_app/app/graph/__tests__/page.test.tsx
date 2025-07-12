@@ -4,7 +4,7 @@ import '@testing-library/jest-dom';
 import GraphPage from '../page';
 
 // Mock the SensorGraph component to isolate the GraphPage test
-jest.mock('@/app/components/SensorGraph', () => {
+jest.mock('@/app/components/SensorLevels', () => {
   return function DummySensorGraph() {
     return <div data-testid="sensor-graph"></div>;
   };
