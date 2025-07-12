@@ -75,14 +75,14 @@ resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
   display_name           = "transform_sunlight_data: Transform Sunlight Data"
   location               = "US" # Or your desired location
   data_source_id         = "scheduled_query"
-  schedule               = "every hour" # Or your desired schedule
+  schedule               = "every 15 minutes"
   destination_dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
   service_account_name   = google_service_account.bq_transfer_sa.email
 
   params = {
     destination_table_name_template = google_bigquery_table.transformed_sunlight_table.table_id
     write_disposition               = "WRITE_APPEND"
-    # MODIFICATION: The query now unnests the JSON array from the 'data' column
+
     query                           = <<-EOF
       WITH ParsedData AS (
         -- First, parse and unnest the raw JSON data
@@ -110,7 +110,7 @@ resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
         pd.sensor_id,
         pd.timestamp,
         pd.ingestion_time,
-        meta.sensor_set
+        meta.sensor_set_id
       FROM
         ParsedData AS pd
       LEFT JOIN

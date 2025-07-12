@@ -43,7 +43,7 @@ def export_sensors_to_firestore(event, context):
             -- Truncate the timestamp to the nearest 15-minute interval using integer division
             TIMESTAMP_SECONDS(900 * DIV(UNIX_SECONDS(observation_minute), 900)) as observation_minute,
             sensor_id,
-            sensor_set,
+            sensor_set_id,
             -- Calculate the average smoothed light intensity for the interval
             AVG(smoothed_light_intensity) as smoothed_light_intensity
         FROM
@@ -81,7 +81,7 @@ def export_sensors_to_firestore(event, context):
             "observation_minute": row.observation_minute,
             # The value is now an average, so we round it for cleanliness
             "smoothed_light_intensity": round(row.smoothed_light_intensity),
-            "sensor_set_id": row.sensor_set
+            "sensor_set_id": row.sensor_set_id
         })
 
         if max_new_timestamp is None or row.observation_minute > max_new_timestamp:

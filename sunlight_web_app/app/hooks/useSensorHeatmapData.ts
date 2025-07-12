@@ -54,7 +54,7 @@ export const useSensorHeatmapData = (selectedDate: string, selectedSensorSet: st
 
         // 1. Fetch sensor metadata (locations) for the selected set
         const metaCollection = collection(db, 'sensor');
-        const metaQuery = query(metaCollection, where('sensor_set', '==', selectedSensorSet));
+        const metaQuery = query(metaCollection, where('sensor_set_id', '==', selectedSensorSet));
         const metaSnapshot = await getDocs(metaQuery);
 
         const metadata = metaSnapshot.docs.map(doc => ({
@@ -65,7 +65,7 @@ export const useSensorHeatmapData = (selectedDate: string, selectedSensorSet: st
         setSensorMetadata(metadata);
 
         if (metadata.length === 0) {
-          setError("No sensor metadata found for this set.");
+          setError("No sensor data found for this set.");
           setLoading(false);
           return;
         }
@@ -81,7 +81,7 @@ export const useSensorHeatmapData = (selectedDate: string, selectedSensorSet: st
           readingsCollection,
           where('observation_minute', '>=', startTimestamp),
           where('observation_minute', '<=', endTimestamp),
-          where('sensor_set', '==', selectedSensorSet)
+          where('sensor_set_id', '==', selectedSensorSet)
         );
 
         const querySnapshot = await getDocs(q);

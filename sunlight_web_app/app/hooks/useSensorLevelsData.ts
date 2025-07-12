@@ -47,7 +47,7 @@ export const useSensorLevelsData = (selectedDate: string, selectedSensorSet: str
 
         // 1. Fetch sensor IDs for the selected set
         const sensorsCollection = collection(db, 'sensor');
-        const sensorQuery = query(sensorsCollection, where('sensor_set', '==', selectedSensorSet));
+        const sensorQuery = query(sensorsCollection, where('sensor_set_id', '==', selectedSensorSet));
         const sensorSnapshot = await getDocs(sensorQuery);
         const fetchedSensorIds = sensorSnapshot.docs.map(doc => doc.data().sensor_id as string).filter(Boolean);
 
@@ -77,7 +77,7 @@ export const useSensorLevelsData = (selectedDate: string, selectedSensorSet: str
           readingsCollection,
           where('observation_minute', '>=', Timestamp.fromMillis(startDayTimestamp)),
           where('observation_minute', '<=', Timestamp.fromMillis(endDayTimestamp)),
-          where('sensor_set', '==', selectedSensorSet)
+          where('sensor_set_id', '==', selectedSensorSet)
         );
 
         const querySnapshot = await getDocs(q);

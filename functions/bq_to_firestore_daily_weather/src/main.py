@@ -8,6 +8,7 @@ Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025
 Apache 2.0 Licensed as described in the file LICENSE
 """
 from google.cloud import bigquery, firestore
+from datetime import date, datetime
 
 # --- Configuration ---
 # The BigQuery dataset and table to read from.
@@ -32,7 +33,7 @@ def export_weather_to_firestore(event, context):
 
     print(f"Cloud Function triggered for project: {project_id}")
 
-    # --- 1. Get the last processed date from Firestore ---
+    # Get the last processed date from Firestore
     metadata_ref = firestore_client.collection("bq_export_metadata").document(METADATA_DOC_ID)
     metadata_doc = metadata_ref.get()
 
@@ -43,7 +44,7 @@ def export_weather_to_firestore(event, context):
 
     print(f"Last processed date: {last_processed_date}")
 
-    # --- 2. Query BigQuery for new rows ---
+    # Query BigQuery for new rows
     # This query selects all fields from the historical weather table for dates
     # that have not yet been processed.
     query = f"""
@@ -68,7 +69,7 @@ def export_weather_to_firestore(event, context):
 
     print(f"Found {len(rows)} new rows to process.")
 
-    # --- 3. Write new data to Firestore in batches ---
+    # Write new data to Firestore in batches
     batch = firestore_client.batch()
     max_processed_date = None
 
@@ -81,11 +82,15 @@ def export_weather_to_firestore(event, context):
         record_date = row_dict.get("date")
 
         if not sensor_set_id or not record_date:
-            print(f"Skipping row due to missing sensor_set_idor date: {row_dict}")
+            print(f"Skipping row due to missing sensor_set_id or date: {row_dict}")
             continue
 
-        # Create a unique document ID, e.g., "test_set_1_2025-07-12"
-        # The date is converted to string to be part of the ID.
+        # Convert the datetime.date object from BigQuery into a
+        # datetime.datetime object, which the Firestore client can handle.
+        # We represent the date as a timestamp at the beginning of the day (midnight).
+        if isinstance(record_date, date):
+            row_dict['date'] = datetime.combine(record_date, datetime.min.time())
+
         doc_id = f"{sensor_set_id}_{record_date.strftime('%Y-%m-%d')}"
         doc_ref = firestore_client.collection(DESTINATION_COLLECTION).document(doc_id)
 
@@ -99,7 +104,7 @@ def export_weather_to_firestore(event, context):
     print(f"Committing batch of {len(rows)} documents to Firestore...")
     batch.commit()
 
-    # --- 4. Update the last processed date in Firestore for the next run ---
+    # Update the last processed date in Firestore for the next run
     if max_processed_date:
         new_date_str = max_processed_date.strftime('%Y-%m-%d')
         metadata_ref.set({

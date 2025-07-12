@@ -9,7 +9,6 @@ resource "google_bigquery_table" "downsampled_sunlight_table" {
   }
   clustering = ["sensor_id", "sensor_set_id"]
 
-  # UPDATED: Schema is now defined using a heredoc for consistency.
   schema = <<EOF
 [
   {
@@ -42,14 +41,13 @@ EOF
 resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
   project                = var.gcp_project_id
   display_name           = "downsample_sunlight_transfer: Incremental Downsample Sunlight Data (LOCF)"
-  location               = "US" # Or your preferred location
+  location               = "US"
   data_source_id         = "scheduled_query"
-  schedule               = "every hour"
+  schedule               = "every 15 minutes"
   destination_dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
   service_account_name   = google_service_account.bq_transfer_sa.email
 
   params = {
-    # UPDATED: The query now joins with metadata to include the sensor_set_idcolumn.
     query = <<-EOT
     MERGE INTO `${var.gcp_project_id}.${var.dataset_id}.${google_bigquery_table.downsampled_sunlight_table.table_id}` AS T
     USING (
@@ -60,7 +58,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
           sensor_id,
           -- Get the last known data point and its timestamp at the same time.
           ARRAY_AGG(
-            STRUCT(observation_minute, smoothed_light_intensity, sensor_set)
+            STRUCT(observation_minute, smoothed_light_intensity, sensor_set_id)
             ORDER BY
               observation_minute DESC
             LIMIT 1
@@ -77,7 +75,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
           raw.timestamp,
           raw.sensor_id,
           raw.light_intensity,
-          raw.sensor_set_id-- Include sensor_set_idfrom the transformed table
+          raw.sensor_set_id
         FROM
           `${var.gcp_project_id}.${var.dataset_id}.${google_bigquery_table.transformed_sunlight_table.table_id}` AS raw
         LEFT JOIN
@@ -92,7 +90,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
         SELECT
           TIMESTAMP_TRUNC(timestamp, MINUTE) as observation_minute,
           sensor_id,
-          sensor_set,
+          sensor_set_id,
           AVG(light_intensity) as light_intensity,
           1 as priority -- new data gets higher priority
         FROM
@@ -105,7 +103,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
         SELECT
           s.last_data.observation_minute,
           s.sensor_id,
-          s.last_data.sensor_set,
+          s.last_data.sensor_set_id,
           s.last_data.smoothed_light_intensity as light_intensity,
           2 as priority -- old data gets lower priority
         FROM
@@ -113,7 +111,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
         WHERE s.last_data.observation_minute IS NOT NULL
       ),
       combined_data AS (
-        SELECT observation_minute, sensor_id, sensor_set, light_intensity FROM (
+        SELECT observation_minute, sensor_id, sensor_set_id, light_intensity FROM (
             SELECT *, ROW_NUMBER() OVER(PARTITION BY observation_minute, sensor_id ORDER BY priority ASC) as rn
             FROM combined_data_with_dupes
         ) WHERE rn = 1
@@ -135,13 +133,13 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
           s.sensor_id,
           s.sensor_set_id        FROM
           minute_series m
-          CROSS JOIN (SELECT DISTINCT sensor_id, sensor_set_idFROM new_raw_data) s
+          CROSS JOIN (SELECT DISTINCT sensor_id, sensor_set_id FROM new_raw_data) s
       ),
       data_gapped AS (
         SELECT
           s.observation_minute,
           s.sensor_id,
-          s.sensor_set,
+          s.sensor_set_id,
           c.light_intensity
         FROM
           scaffold s
@@ -153,9 +151,9 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
         SELECT
           observation_minute,
           sensor_id,
-          sensor_set,
+          sensor_set_id,
           light_intensity,
-          LAST_VALUE(IF(light_intensity IS NOT NULL, STRUCT(light_intensity, sensor_set), NULL) IGNORE NULLS) OVER (PARTITION BY sensor_id ORDER BY observation_minute) as last_point
+          LAST_VALUE(IF(light_intensity IS NOT NULL, STRUCT(light_intensity, sensor_set_id), NULL) IGNORE NULLS) OVER (PARTITION BY sensor_id ORDER BY observation_minute) as last_point
         FROM
           data_gapped
       )
@@ -165,7 +163,7 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
         observation_minute,
         sensor_id,
         COALESCE(light_intensity, last_point.light_intensity) AS smoothed_light_intensity,
-        COALESCE(sensor_set, last_point.sensor_set) AS sensor_set_id      FROM
+        COALESCE(sensor_set_id, last_point.sensor_set_id) AS sensor_set_id      FROM
         gaps_with_boundaries
       WHERE last_point.light_intensity IS NOT NULL
 
@@ -174,8 +172,8 @@ resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
     WHEN MATCHED THEN
       UPDATE SET T.smoothed_light_intensity = S.smoothed_light_intensity, T.sensor_set_id= S.sensor_set_id
     WHEN NOT MATCHED BY TARGET THEN
-      INSERT (observation_minute, sensor_id, smoothed_light_intensity, sensor_set)
-      VALUES (observation_minute, sensor_id, smoothed_light_intensity, sensor_set);
+      INSERT (observation_minute, sensor_id, smoothed_light_intensity, sensor_set_id)
+      VALUES (observation_minute, sensor_id, smoothed_light_intensity, sensor_set_id);
     EOT
   }
 

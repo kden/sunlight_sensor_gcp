@@ -4,8 +4,8 @@
 # This gives the function a dedicated identity with specific permissions.
 resource "google_service_account" "bq_to_firestore_sensors_sa" {
   project      = var.gcp_project_id
-  account_id   = "bq-to-firebase-exporter"
-  display_name = "BigQuery to Firebase Exporter SA"
+  account_id   = "bq-to-fs-sensors-exporter"
+  display_name = "BigQuery to Firebase Sensor Data Exporter SA"
 }
 
 # 2. Permissions for the Service Account

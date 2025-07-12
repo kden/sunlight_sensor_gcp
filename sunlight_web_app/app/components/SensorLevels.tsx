@@ -8,7 +8,7 @@ import { useSensorSets } from '@/app/hooks/useSensorSets';
 import usePersistentState from '@/app/hooks/usePersistentState';
 import { useSensorLevelsData } from '@/app/hooks/useSensorLevelsData';
 import Toolbar from './Toolbar';
-import SensorLevelsGraph from './SensorLevelsGraph';
+import SensorLevelsChart from './SensorLevelsChart';
 import StatusDisplay from './StatusDisplay'; // Import the new component
 
 const getTodayString = () => {
@@ -88,7 +88,7 @@ const SensorLevels = () => {
 
       {/* The graph only renders when all conditions are met */}
       {!loading && !error && readings && readings.length > 0 && sensorIds && (
-        <SensorLevelsGraph
+        <SensorLevelsChart
           readings={readings}
           sensorIds={sensorIds}
           hourlyTicks={hourlyTicks}

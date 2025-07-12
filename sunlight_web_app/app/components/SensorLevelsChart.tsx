@@ -18,7 +18,7 @@ interface Reading {
   [key: string]: number | string;
 }
 
-interface SensorLevelsGraphProps {
+interface SensorLevelsChartProps {
   readings: Reading[];
   sensorIds: string[];
   hourlyTicks: number[];
@@ -30,7 +30,7 @@ interface SensorLevelsGraphProps {
 
 const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#387908', '#d0ed57'];
 
-const SensorLevelsGraph: React.FC<SensorLevelsGraphProps> = ({
+const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
   readings,
   sensorIds,
   hourlyTicks,
@@ -86,4 +86,4 @@ const SensorLevelsGraph: React.FC<SensorLevelsGraphProps> = ({
   );
 };
 
-export default SensorLevelsGraph;
+export default SensorLevelsChart;
