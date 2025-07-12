@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { DateTime } from 'luxon';
 import { useSensorSets } from '@/app/hooks/useSensorSets';
 import usePersistentState from '@/app/hooks/usePersistentState';
-import { useSensorData } from '@/app/hooks/useSensorData';
+import { useSensorLevelsData } from '@/app/hooks/useSensorLevelsData';
 import Toolbar from './Toolbar';
 import SensorLevelsGraph from './SensorLevelsGraph';
 import StatusDisplay from './StatusDisplay'; // Import the new component
@@ -27,7 +27,7 @@ const SensorLevels = () => {
   // Hooks for fetching metadata and data
   // FIX: Removed the trailing underscore that was causing a syntax error.
   const { sensorSets, loading: sensorSetsLoading, error: sensorSetsError } = useSensorSets();
-  const { readings, sensorIds, hourlyTicks, axisDomain, loading, error } = useSensorData(selectedDate, selectedSensorSet, timezone);
+  const { readings, sensorIds, hourlyTicks, axisDomain, loading, error } = useSensorLevelsData(selectedDate, selectedSensorSet, timezone);
 
   useEffect(() => {
     setIsMounted(true);

@@ -21,7 +21,7 @@ interface UseSensorDataReturn {
   error: string | null;
 }
 
-export const useSensorData = (selectedDate: string, selectedSensorSet: string, timezone: string): UseSensorDataReturn => {
+export const useSensorLevelsData = (selectedDate: string, selectedSensorSet: string, timezone: string): UseSensorDataReturn => {
   const [readings, setReadings] = useState<Reading[]>([]);
   const [sensorIds, setSensorIds] = useState<string[] | null>(null);
   const [hourlyTicks, setHourlyTicks] = useState<number[]>([]);

@@ -23,7 +23,27 @@ resource "google_firestore_database" "database" {
   }
 }
 
-# Step 1: Define the ruleset using the new resource type
+resource "google_firestore_index" "sunlight_readings_index" {
+  project    = var.gcp_project_id
+  collection = "sunlight_readings"
+
+  # This index applies to queries against a single collection.
+  # Use "COLLECTION_GROUP" for collection group queries.
+  query_scope = "COLLECTION"
+
+  # Define the fields and their order for the index.
+  # The order of these blocks matters.
+  fields {
+    field_path = "sensor_set"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "observation_minute"
+    order      = "ASCENDING"
+  }
+}
+
 resource "google_firebaserules_ruleset" "default_firestore_rules" {
   project = var.gcp_project_id
   source {
@@ -60,7 +80,7 @@ resource "google_firebaserules_ruleset" "default_firestore_rules" {
   ]
 }
 
-# Step 2: Create a "release" to apply the ruleset to Firestore
+# Create a "release" to apply the ruleset to Firestore
 resource "google_firebaserules_release" "default_firestore_rules_release" {
   project      = var.gcp_project_id
   ruleset_name = google_firebaserules_ruleset.default_firestore_rules.name
