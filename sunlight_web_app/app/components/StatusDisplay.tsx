@@ -1,23 +1,26 @@
-// /app/components/StatusDisplay.tsx
+// /home/caden/code/sunlight_sensor_gcp/sunlight_web_app/app/components/StatusDisplay.tsx
 
 import React from 'react';
 
-interface StatusDisplayProps {
+// By using a generic <T>, this component can accept an array of any type
+// without losing type information.
+interface StatusDisplayProps<T> {
   loading: boolean;
   error: string | null;
   /** The data array to check for content. */
-  data: any[] | null;
+  data: T[] | null;
   loadingMessage?: string;
   noDataMessage?: string;
 }
 
-const StatusDisplay: React.FC<StatusDisplayProps> = ({
+// The component function is now also generic.
+function StatusDisplay<T>({
   loading,
   error,
   data,
   loadingMessage = "Loading...",
   noDataMessage = "No data available."
-}) => {
+}: StatusDisplayProps<T>) {
   if (loading) {
     return <p className="text-center mt-4">{loadingMessage}</p>;
   }
@@ -33,6 +36,6 @@ const StatusDisplay: React.FC<StatusDisplayProps> = ({
 
   // If none of the above conditions are met, render nothing.
   return null;
-};
+}
 
 export default StatusDisplay;

@@ -64,7 +64,6 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
         <Legend
           wrapperStyle={{ color: '#fff' }}
           onClick={(data) => {
-            // FIX: Check if dataKey is a string before calling the handler
             if (typeof data.dataKey === 'string') {
               onLegendClick(data.dataKey);
             }

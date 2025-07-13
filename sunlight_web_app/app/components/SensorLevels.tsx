@@ -25,7 +25,6 @@ const SensorLevels = () => {
   const [timezone, setTimezone] = useState('');
 
   // Hooks for fetching metadata and data
-  // FIX: Removed the trailing underscore that was causing a syntax error.
   const { sensorSets, loading: sensorSetsLoading, error: sensorSetsError } = useSensorSets();
   const { readings, sensorIds, hourlyTicks, axisDomain, loading, error } = useSensorLevelsData(selectedDate, selectedSensorSet, timezone);
 

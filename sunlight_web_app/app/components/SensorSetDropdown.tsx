@@ -1,4 +1,4 @@
-// SensorSetDropdown.tsx
+// /home/caden/code/sunlight_sensor_gcp/sunlight_web_app/app/components/SensorSetDropdown.tsx
 
 import { SensorSet } from '@/app/types/SensorSet';
 
@@ -10,10 +10,7 @@ interface SensorSetDropdownProps {
 }
 
 const SensorSetDropdown = ({ id, selectedSensorSet, sensorSets, onChange }: SensorSetDropdownProps) => {
-
-  if (!sensorSets) {
-    return <p className="text-red-500">Error: Sensor sets not provided.</p>;
-  }
+  // The redundant `if (!sensorSets)` check has been removed.
 
   return (
     <select
