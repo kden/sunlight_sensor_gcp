@@ -1,4 +1,12 @@
-// /home/caden/code/sunlight_sensor_gcp/sunlight_web_app/app/hooks/__tests__/useSensorLevelsData.test.ts
+/*
+ * useSensorLevelsData.test.ts
+ *
+ * Unit tests for sensor levels data retrieval hook.
+ *
+ * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+ * Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+ * Apache 2.0 Licensed as described in the file LICENSE
+ */
 
 import { renderHook, waitFor } from '@testing-library/react';
 import { useSensorLevelsData } from '../useSensorLevelsData';

@@ -1,12 +1,13 @@
 """
 test_export_sensors_to_firestore.py
 
-Unit tests for the export_to_firestore function.
+Unit tests for the export_sensors_to_firestore function.
 
 Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
 Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
 Apache 2.0 Licensed as described in the file LICENSE
 """
+
 import unittest
 from unittest import mock
 from datetime import datetime, timezone # Import timezone
@@ -48,14 +49,14 @@ class TestExportToFirestore(unittest.TestCase):
         mock_rows = [
             MockBigQueryRow({
                 "sensor_id": "test_sensor_1",
-                # FIXED: Use timezone-aware datetime objects for mocks
+                # Use timezone-aware datetime objects for mocks
                 "observation_minute": datetime(2025, 7, 7, 13, 0, 0, tzinfo=timezone.utc),
                 "smoothed_light_intensity": 100.0,
                 "sensor_set_id": "test"
             }),
             MockBigQueryRow({
                 "sensor_id": "test_sensor_1",
-                # FIXED: Use timezone-aware datetime objects for mocks
+                # Use timezone-aware datetime objects for mocks
                 "observation_minute": datetime(2025, 7, 7, 13, 1, 0, tzinfo=timezone.utc),
                 "smoothed_light_intensity": 101.5,
                 "sensor_set_id": "test"

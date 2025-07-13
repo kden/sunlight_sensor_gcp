@@ -1,3 +1,13 @@
+/*
+ * layout.tsx
+ *
+ * Page layout for entire app.
+ *
+ * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+ * Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+ * Apache 2.0 Licensed as described in the file LICENSE
+ */
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -33,20 +43,20 @@ export default function RootLayout({
             <h1 className="text-2xl font-bold mb-4 text-amber-300">Sunlight Dashboard</h1>
             <nav>
               <ul>
+
                 <li className="mb-2">
                   <Link href="/" className="hover:text-amber-300 block py-2">
-                    Sensor Details
-                  </Link>
-                </li>
-                <li className="mb-2">
-                  <Link href="/graph" className="hover:text-amber-300 block py-2">
                     Sensor Levels
                   </Link>
                 </li>
-                {/* New Link for the Sensor Heatmap */}
-                <li>
+                <li className="mb-2">
                   <Link href="/heatmap" className="hover:text-amber-300 block py-2">
                     Sensor Heatmap
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/details" className="hover:text-amber-300 block py-2">
+                    Sensor Details
                   </Link>
                 </li>
               </ul>

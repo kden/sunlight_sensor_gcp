@@ -1,3 +1,11 @@
+# terraform/bigquery.tf
+#
+# Set up initial BigQuery tables for collecting sunlight sensor data.
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
 # Grant Pub/Sub service account permission to write to BigQuery
 resource "google_project_iam_member" "pubsub_bigquery_publisher" {
   project = var.gcp_project_id

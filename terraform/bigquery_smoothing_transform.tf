@@ -1,3 +1,13 @@
+# terraform/bigquery_smoothing_transform.tf
+#
+# Define a transformation that runs as a scheduled query that
+# smooths incoming data so that exactly one entry per minute is
+# produced.
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
 resource "google_bigquery_table" "downsampled_sunlight_table" {
   dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
   table_id   = "downsampled_sunlight_data"

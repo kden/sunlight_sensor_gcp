@@ -1,6 +1,18 @@
 #!/bin/bash
 
+#
+# terraform_import.sh
+#
 # This script imports existing Google Cloud resources into Terraform state.
+#
+# Some names have changed, and this script acts more as a scratch pad to update
+# resources that have gotten out-of-sync with the Terraform state.
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+#
+
 
 terraform import google_pubsub_topic.sun_sensor_ingest projects/sunlight-sensor/topics/sun-sensor-ingest-topic
 terraform import google_pubsub_subscription.sun_sensor_ingest_test_sub projects/sunlight-sensor/subscriptions/sun-sensor-ingest-test-sub

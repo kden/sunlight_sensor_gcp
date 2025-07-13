@@ -1,3 +1,13 @@
+# terraform/bigquery_column_transform.tf
+#
+# Transform the incoming sensor data from a pubsub message data column
+# to one column per field.
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
+
 # The first processing table that gets the transformed raw data
 resource "google_bigquery_table" "transformed_sunlight_table" {
   project    = var.gcp_project_id

@@ -1,3 +1,11 @@
+# terraform/bigquery_historical_data_weather.tf
+#
+# Create a table for historical weather information in BigQuery
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
 resource "google_bigquery_table" "daily_historical_weather" {
   dataset_id = google_bigquery_dataset.sunlight_dataset.dataset_id
   table_id   = "daily_historical_weather"

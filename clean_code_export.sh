@@ -1,9 +1,17 @@
 #!/bin/bash
 
+#
+# terraform_import.sh
+#
 # Copy just the files that are tracked by git to a sibling folder and
 # create fake confidential files from the examples.
-
+#
 # This is helpful to upload a public version of the code to an AI tool.
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+#
 
 # Define the sibling folder path
 SIBLING_FOLDER="../sunlight_sensor_gcp_shared"

@@ -1,4 +1,10 @@
 # terraform/cloudrun_sensor_rest_proxy.tf
+#
+# Proxy function so that sensors don't have to use Pub/Sub authentication.
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
 
 # --- Variables ---
 variable "sensor_target_api_domain_name" {

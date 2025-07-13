@@ -3,8 +3,8 @@ generate_test_data.py
 
 Generates a week's worth of per-minute light intensity data
 and sends it to a sensor API.
-The levels are based on a sine wave pattern to make an easily-recognizable
-continuous pattern.
+The levels are based on a sine wave pattern squashed under a
+bell curve to make an easily-recognizable continuous pattern.
 
 Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
 Apache 2.0 Licensed as described in the file LICENSE
@@ -24,7 +24,7 @@ BEARER_TOKEN = os.getenv('BEARER_TOKEN', 'xxx')
 
 def generate_light_intensity(minute, phase_shift=0):
     """
-    Generate light intensity based on sine wave with an optional phase shift.
+    Generate light intensity based on sine wave and bell curve with an optional phase shift.
 
     Args:
         minute (int): Minute of the day (0-1439)

@@ -1,4 +1,12 @@
-// /app/components/Toolbar.tsx
+/*
+ * Toolbar.tsx
+ *
+ * Contains filtering components for a chart display.
+ *
+ * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+ * Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+ * Apache 2.0 Licensed as described in the file LICENSE
+ */
 
 import React from 'react';
 import SensorSetDropdown from "@/app/components/SensorSetDropdown";

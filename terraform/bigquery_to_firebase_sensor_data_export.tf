@@ -1,4 +1,12 @@
-# This file defines the resources to export sensor data from BigQuery to Firestore.
+# terraform/bigquery_to_firebase_sensor_data_export.tf
+#
+# Define the resources to export sensor data from BigQuery to Firestore.
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
+
 
 # 1. Service Account for the Cloud Function
 # This gives the function a dedicated identity with specific permissions.

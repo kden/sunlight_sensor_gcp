@@ -1,3 +1,11 @@
+# terraform/firebase_webapp.tf
+#
+# Resources for defining the React webapp on Firebase.
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
 # Register the React web application with Firebase.
 # This creates the "app" that you will see in the Firebase console
 # and generates the client-side configuration.

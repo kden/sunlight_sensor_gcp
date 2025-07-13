@@ -7,8 +7,7 @@ Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
 Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
 Apache 2.0 Licensed as described in the file LICENSE
 """
-import base64
-import os
+
 from datetime import timezone
 from google.cloud import bigquery, firestore
 
@@ -36,7 +35,7 @@ def export_sensors_to_firestore(event, context):
     print(f"Last processed timestamp: {last_processed_ts}")
 
     # --- 2. Query BigQuery for new rows, aggregating to 15-minute intervals ---
-    # MODIFICATION: The query now uses timestamp arithmetic to correctly
+    # The query uses timestamp arithmetic to correctly
     # bucket the data into 15-minute intervals.
     query = f"""
         SELECT

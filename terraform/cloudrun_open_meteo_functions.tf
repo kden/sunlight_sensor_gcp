@@ -1,3 +1,11 @@
+# terraform/cloudrun_open_meteo_functions.tf
+#
+# Cloud function to grab daily data from Open Meteo.
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
 # --- Archive the Go Source Code for the Open-Meteo Function ---
 data "archive_file" "open_meteo_source_zip" {
   type        = "zip"
