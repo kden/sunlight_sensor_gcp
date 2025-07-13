@@ -13,44 +13,43 @@ import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import DetailsPage from '../page';
 import { getDocs } from 'firebase/firestore';
+import { useSensorSelection } from '@/app/hooks/useSensorSelection';
 
-// FIX: Mock all the firestore functions used by the component to completely
-// isolate it from the actual Firebase SDK during tests.
+// Mock the firestore module, which is still a dependency for the data fetch
 jest.mock('firebase/firestore', () => ({
   getFirestore: jest.fn(),
   collection: jest.fn(),
   query: jest.fn(),
   where: jest.fn(),
-  getDocs: jest.fn(), // This is the only function we need to control for these tests.
+  getDocs: jest.fn(),
 }));
 
-// Mock the custom hook for fetching sensor sets
-jest.mock('@/app/hooks/useSensorSets', () => ({
-  useSensorSets: () => ({
-    sensorSets: [{ id: 'set1', name: 'Test Set 1', timezone: 'UTC' }],
-    loading: false,
-    error: null,
-  }),
-}));
+// Mock the component's new direct dependency, the useSensorSelection hook.
+jest.mock('@/app/hooks/useSensorSelection');
 
-// Mock the custom hook for persistent state to provide a stable value
-jest.mock('@/app/hooks/usePersistentState', () => (key: string, defaultValue: any) => {
-  // When the component asks for the selected set, give it 'set1' to trigger the data fetch
-  const value = key === 'sensor-details-set' ? 'set1' : defaultValue;
-  // We only need to return the value and a dummy function for setState
-  return [value, jest.fn()];
-});
+// Cast the mocks for TypeScript to recognize them as Jest mock functions
+const mockUseSensorSelection = useSensorSelection as jest.Mock;
+const mockGetDocs = getDocs as jest.Mock;
 
 describe('DetailsPage', () => {
-  // Cast the mock for TypeScript to recognize it as a Jest mock function
-  const mockGetDocs = getDocs as jest.Mock;
-
   beforeEach(() => {
-    // Clear any previous mock implementations and calls before each test
+    // Clear all mocks before each test to ensure isolation
     mockGetDocs.mockClear();
+    mockUseSensorSelection.mockClear();
   });
 
   it('should render the main heading and show a loading message initially', () => {
+    // Setup: The sensor selection is complete, but the sensor data is still loading.
+    mockUseSensorSelection.mockReturnValue({
+      selectedSensorSet: 'set1',
+      sensorSets: [{ id: 'set1', name: 'Test Set 1', timezone: 'UTC', latitude: 40.1, longitude: -80.2 }],
+      sensorSetsLoading: false,
+      sensorSetsError: null,
+      timezone: 'UTC',
+      latitude: 40.1,
+      longitude: -80.2,
+      handleSensorSetChange: jest.fn(),
+    });
     // Mock getDocs to be a promise that never resolves to simulate a loading state
     mockGetDocs.mockImplementation(() => new Promise(() => {}));
 
@@ -61,6 +60,17 @@ describe('DetailsPage', () => {
   });
 
   it('should display sensor data in a table after a successful fetch', async () => {
+    // Setup: The selection is complete and the data fetch will succeed.
+    mockUseSensorSelection.mockReturnValue({
+      selectedSensorSet: 'set1',
+      sensorSets: [{ id: 'set1', name: 'Test Set 1', timezone: 'UTC', latitude: 40.1, longitude: -80.2 }],
+      sensorSetsLoading: false,
+      sensorSetsError: null,
+      timezone: 'UTC',
+      latitude: 40.1,
+      longitude: -80.2,
+      handleSensorSetChange: jest.fn(),
+    });
     const mockSensors = [
       {
         id: 'sensor-A',
@@ -73,8 +83,6 @@ describe('DetailsPage', () => {
         }),
       },
     ];
-
-    // Mock a successful response from getDocs
     mockGetDocs.mockResolvedValue({ docs: mockSensors });
 
     render(<DetailsPage />);
@@ -91,7 +99,17 @@ describe('DetailsPage', () => {
   });
 
   it('should display an error message if the data fetch fails', async () => {
-    // Mock a failed response from getDocs
+    // Setup: The selection is complete and the data fetch will fail.
+    mockUseSensorSelection.mockReturnValue({
+      selectedSensorSet: 'set1',
+      sensorSets: [{ id: 'set1', name: 'Test Set 1', timezone: 'UTC', latitude: 40.1, longitude: -80.2 }],
+      sensorSetsLoading: false,
+      sensorSetsError: null,
+      timezone: 'UTC',
+      latitude: 40.1,
+      longitude: -80.2,
+      handleSensorSetChange: jest.fn(),
+    });
     mockGetDocs.mockRejectedValue(new Error('Firestore query failed'));
 
     render(<DetailsPage />);
@@ -103,7 +121,17 @@ describe('DetailsPage', () => {
   });
 
   it('should display a "no sensors" message if the fetch returns no data', async () => {
-    // Mock an empty response
+    // Setup: The selection is complete and the fetch returns an empty array.
+    mockUseSensorSelection.mockReturnValue({
+      selectedSensorSet: 'set1',
+      sensorSets: [{ id: 'set1', name: 'Test Set 1', timezone: 'UTC', latitude: 40.1, longitude: -80.2 }],
+      sensorSetsLoading: false,
+      sensorSetsError: null,
+      timezone: 'UTC',
+      latitude: 40.1,
+      longitude: -80.2,
+      handleSensorSetChange: jest.fn(),
+    });
     mockGetDocs.mockResolvedValue({ docs: [] });
 
     render(<DetailsPage />);
@@ -112,5 +140,25 @@ describe('DetailsPage', () => {
     await waitFor(() => {
       expect(screen.getByText('No sensors found for the selected set.')).toBeInTheDocument();
     });
+  });
+
+  it('should show a loading message for sensor sets', () => {
+    // Setup: The selection hook itself is in a loading state.
+    mockUseSensorSelection.mockReturnValue({
+      selectedSensorSet: '',
+      sensorSets: [],
+      sensorSetsLoading: true,
+      sensorSetsError: null,
+      timezone: '',
+      latitude: null,
+      longitude: null,
+      handleSensorSetChange: jest.fn(),
+    });
+
+    render(<DetailsPage />);
+
+    expect(screen.getByText('Loading sets...')).toBeInTheDocument();
+    // The sensor data fetch should not have started yet
+    expect(screen.queryByText('Loading sensor data...')).not.toBeInTheDocument();
   });
 });

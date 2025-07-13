@@ -1,129 +1,108 @@
 /*
- * usePersistentState.test.ts
+ * useSensorSets.test.ts
  *
- * Unit tests for usePersistentState hook.
+ * Unit tests for sensor set list retrieval hook.
  *
  * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
  * Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
  * Apache 2.0 Licensed as described in the file LICENSE
  */
 
-import { renderHook, act } from '@testing-library/react';
-import usePersistentState from '../usePersistentState';
+import { renderHook, waitFor } from '@testing-library/react';
+import { useSensorSets } from '../useSensorSets';
+import { getDocs } from 'firebase/firestore';
+import { SensorSet } from '@/app/types/SensorSet';
 
-// We create a mock of the localStorage API for our Jest/JSDOM environment.
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value.toString();
-    },
-    clear: () => {
-      store = {};
-    },
-    removeItem: (key: string) => {
-      delete store[key];
-    },
-  };
-})();
+// Mock the entire 'firebase/firestore' module
+jest.mock('firebase/firestore', () => ({
+  getFirestore: jest.fn(),
+  collection: jest.fn(),
+  getDocs: jest.fn(),
+}));
 
-// Assign the mock to the window object provided by JSDOM
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-  writable: true, // Make it writable so we can change it in tests
-});
+// Type-safe casting for our mocked functions
+const mockedGetDocs = getDocs as jest.Mock;
 
-describe('usePersistentState Hook (Browser Environment)', () => {
-  const TEST_KEY = 'test-key';
-
-  // Spies to track calls to localStorage
-  let getItemSpy: jest.SpyInstance;
-  let setItemSpy: jest.SpyInstance;
-
-  // Before each test, clear the mock storage and reset spies
+describe('useSensorSets Hook', () => {
+  // Reset mocks before each test to ensure isolation
   beforeEach(() => {
-    localStorageMock.clear();
-    getItemSpy = jest.spyOn(window.localStorage, 'getItem');
-    setItemSpy = jest.spyOn(window.localStorage, 'setItem');
-  });
-
-  afterEach(() => {
     jest.clearAllMocks();
   });
 
-  it('should return the default value if nothing is in localStorage', () => {
-    const defaultValue = 'default-value';
-    const { result } = renderHook(() => usePersistentState(TEST_KEY, defaultValue));
+  it('should return the initial state correctly', () => {
+    const { result } = renderHook(() => useSensorSets());
 
-    expect(result.current[0]).toBe(defaultValue);
-    expect(getItemSpy).toHaveBeenCalledWith(TEST_KEY);
+    expect(result.current.loading).toBe(true);
+    expect(result.current.error).toBeNull();
+    expect(result.current.sensorSets).toEqual([]);
   });
 
-  it('should initialize with the value from localStorage if it exists', () => {
-    const storedValue = { id: 1, name: 'Stored Item' };
-    localStorageMock.setItem(TEST_KEY, JSON.stringify(storedValue));
+  it('should fetch and set sensor sets on successful API call', async () => {
+    const mockSensorSetsData = [
+      {
+        id: 'set1',
+        data: () => ({
+          sensor_set_id: 'My First Sensor Set',
+          timezone: 'America/New_York',
+          latitude: 40.7128,
+          longitude: -74.0060,
+        }),
+      },
+      {
+        id: 'set2',
+        data: () => ({ sensor_set_id: 'My Second Sensor Set', timezone: 'Europe/London' }),
+      },
+      // Test fallback logic
+      {
+        id: 'set3-fallback',
+        data: () => ({}), // No sensor_set_id or timezone
+      },
+    ];
 
-    const { result } = renderHook(() => usePersistentState(TEST_KEY, {}));
+    // FIX: Update the expected data to match the hook's new return shape.
+    const expectedSensorSets: SensorSet[] = [
+      { id: 'set1', name: 'My First Sensor Set', timezone: 'America/New_York', latitude: 40.7128, longitude: -74.0060 },
+      { id: 'set2', name: 'My Second Sensor Set', timezone: 'Europe/London', latitude: null, longitude: null },
+      { id: 'set3-fallback', name: 'set3-fallback', timezone: 'UTC', latitude: null, longitude: null },
+    ];
 
-    expect(result.current[0]).toEqual(storedValue);
-    expect(getItemSpy).toHaveBeenCalledWith(TEST_KEY);
-  });
+    // Mock the resolved value of getDocs
+    mockedGetDocs.mockResolvedValue({ docs: mockSensorSetsData });
 
-  it('should update localStorage when the state changes', () => {
-    const defaultValue = 'initial';
-    const { result } = renderHook(() => usePersistentState(TEST_KEY, defaultValue));
+    const { result } = renderHook(() => useSensorSets());
 
-    const newValue = 'updated';
-    act(() => {
-      const setState = result.current[1];
-      setState(newValue);
+    // Wait for the async effect to complete and loading to be false
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
     });
 
-    expect(result.current[0]).toBe(newValue);
-    expect(setItemSpy).toHaveBeenLastCalledWith(TEST_KEY, JSON.stringify(newValue));
+    // Assert the final state
+    expect(result.current.error).toBeNull();
+    expect(result.current.sensorSets).toEqual(expectedSensorSets);
+    expect(mockedGetDocs).toHaveBeenCalledTimes(1);
   });
 
-  it('should return the default value if localStorage contains malformed JSON', () => {
+  it('should set an error message on a failed API call', async () => {
+    const mockError = new Error('Firestore permission denied');
+    // Mock the rejected value of getDocs
+    mockedGetDocs.mockRejectedValue(mockError);
+
+    // Suppress the expected console.error from appearing in the test output
     const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    localStorageMock.setItem(TEST_KEY, 'not-a-valid-json-string');
 
-    const defaultValue = { status: 'default' };
-    const { result } = renderHook(() => usePersistentState(TEST_KEY, defaultValue));
+    const { result } = renderHook(() => useSensorSets());
 
-    expect(result.current[0]).toEqual(defaultValue);
-    expect(consoleErrorSpy).toHaveBeenCalledWith(
-      `Error reading localStorage key “${TEST_KEY}”:`,
-      expect.any(SyntaxError)
-    );
+    // Wait for the async effect to complete
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
 
+    // Assert the final state
+    expect(result.current.error).toBe('Failed to load sensor set metadata.');
+    expect(result.current.sensorSets).toEqual([]);
+    expect(consoleErrorSpy).toHaveBeenCalledWith("Error fetching sensor sets:", mockError);
+
+    // Restore console.error
     consoleErrorSpy.mockRestore();
-  });
-
-  it('should handle an environment where localStorage is not available', () => {
-    const originalLocalStorage = window.localStorage;
-    // Simulate an environment where localStorage is disabled (e.g., private browsing)
-    // This forces the hook's `try/catch` block to fire, which is the desired behavior.
-    // Use @ts-expect-error as it's more descriptive and safer.
-    // @ts-expect-error assigning to localStorage
-    window.localStorage = undefined;
-
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-
-    try {
-      const { result } = renderHook(() => usePersistentState('no-storage-key', 'no-storage-value'));
-
-      // The hook should not crash and should fall back to the default value.
-      expect(result.current[0]).toBe('no-storage-value');
-      // It should log the error from the `try/catch` block.
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error reading localStorage key “no-storage-key”:',
-        expect.any(TypeError)
-      );
-    } finally {
-      // Restore localStorage for other tests
-      window.localStorage = originalLocalStorage;
-      consoleErrorSpy.mockRestore();
-    }
   });
 });

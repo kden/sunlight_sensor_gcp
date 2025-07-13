@@ -14,12 +14,10 @@ interface SensorSetDropdownProps {
   id?: string;
   selectedSensorSet: string;
   sensorSets: SensorSet[]; // <-- Accept the array as a prop
-  onChange: (setId: string, timezone: string) => void;
+  onChange: (setId: string, timezone: string, latitude: number | null, longitude: number | null) => void;
 }
 
 const SensorSetDropdown = ({ id, selectedSensorSet, sensorSets, onChange }: SensorSetDropdownProps) => {
-  // The redundant `if (!sensorSets)` check has been removed.
-
   return (
     <select
       id={id}
@@ -28,7 +26,8 @@ const SensorSetDropdown = ({ id, selectedSensorSet, sensorSets, onChange }: Sens
         const setId = e.target.value;
         const selectedSet = sensorSets.find(s => s.id === setId);
         if (selectedSet) {
-          onChange(setId, selectedSet.timezone);
+          // Pass all relevant details from the selected set
+          onChange(setId, selectedSet.timezone, selectedSet.latitude, selectedSet.longitude);
         }
       }}
       className="bg-gray-700 text-white p-2 rounded"

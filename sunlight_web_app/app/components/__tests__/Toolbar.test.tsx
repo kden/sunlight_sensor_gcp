@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react'; // Import fireEvent
+import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import Toolbar from '../Toolbar';
@@ -18,8 +18,8 @@ import { SensorSet } from '@/app/types/SensorSet';
 describe('Toolbar Component', () => {
   // --- Mock Data and Functions ---
   const mockSensorSets: SensorSet[] = [
-    { id: 'set-1', name: 'Garden Sensors', timezone: 'America/New_York' },
-    { id: 'set-2', name: 'Rooftop Array', timezone: 'America/Chicago' },
+    { id: 'set-1', name: 'Garden Sensors', timezone: 'America/New_York', latitude: 40.7128, longitude: -74.0060 },
+    { id: 'set-2', name: 'Rooftop Array', timezone: 'America/Chicago', latitude: 41.8781, longitude: -87.6298 },
   ];
 
   const mockOnDateChange = jest.fn();
@@ -27,6 +27,7 @@ describe('Toolbar Component', () => {
 
   // A helper function to render the component with default props
   const renderToolbar = (props = {}) => {
+    // FIX: Add latitude and longitude to the default props.
     const defaultProps = {
       selectedDate: '2024-01-15',
       onDateChange: mockOnDateChange,
@@ -36,6 +37,8 @@ describe('Toolbar Component', () => {
       sensorSetsLoading: false,
       sensorSetsError: null,
       timezone: 'America/New_York',
+      latitude: 40.7128,
+      longitude: -74.0060,
     };
     return render(<Toolbar {...defaultProps} {...props} />);
   };
@@ -58,7 +61,6 @@ describe('Toolbar Component', () => {
     expect(screen.getByLabelText('Sensor Set:')).toBeInTheDocument();
     const dropdown = screen.getByRole('combobox', { name: 'Sensor Set:' });
     expect(dropdown).toBeInTheDocument();
-    // Check that the correct option is selected
     expect(screen.getByRole<HTMLOptionElement>('option', { name: 'Garden Sensors' }).selected).toBe(true);
 
     // Check for the timezone display
@@ -72,10 +74,7 @@ describe('Toolbar Component', () => {
   it('should call onDateChange when the date is changed', async () => {
     renderToolbar();
     const datePicker = screen.getByLabelText('Select Date:');
-
-    // Use fireEvent.change for date inputs for better reliability
     fireEvent.change(datePicker, { target: { value: '2024-02-20' } });
-
     expect(mockOnDateChange).toHaveBeenCalledWith('2024-02-20');
   });
 
@@ -87,34 +86,36 @@ describe('Toolbar Component', () => {
     await user.selectOptions(dropdown, 'set-2');
 
     expect(mockOnSensorSetChange).toHaveBeenCalledTimes(1);
-    expect(mockOnSensorSetChange).toHaveBeenCalledWith('set-2', 'America/Chicago');
+    expect(mockOnSensorSetChange).toHaveBeenCalledWith('set-2', 'America/Chicago', 41.8781, -87.6298);
+  });
+
+  it('should display latitude and longitude when provided', () => {
+    renderToolbar({ latitude: 40.7128, longitude: -74.0060 });
+    expect(screen.getByText('Lat: 40.713, Lon: -74.006')).toBeInTheDocument();
+  });
+
+  it('should not display latitude and longitude when they are null', () => {
+    renderToolbar({ latitude: null, longitude: null });
+    expect(screen.queryByText(/Lat:/)).not.toBeInTheDocument();
   });
 
   it('should display a loading message when sensor sets are loading', () => {
     renderToolbar({ sensorSetsLoading: true, sensorSets: [] });
-
     expect(screen.getByText('Loading sets...')).toBeInTheDocument();
-    // The dropdown should not be rendered while loading
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
   it('should display an error message when there is an error fetching sensor sets', () => {
     const errorMessage = 'Failed to connect.';
     renderToolbar({ sensorSetsError: errorMessage, sensorSets: [] });
-
     expect(screen.getByText(errorMessage)).toBeInTheDocument();
     expect(screen.getByText(errorMessage)).toHaveClass('text-red-500');
-    // The dropdown should not be rendered on error
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
   });
 
   it('should not render the dropdown if there are no sensor sets, loading, or errors', () => {
     renderToolbar({ sensorSets: [] });
-
-    // Use getByText to find the label text without needing the associated control.
     expect(screen.getByText('Sensor Set:')).toBeInTheDocument();
-
-    // The dropdown, loading, and error states are not present
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
     expect(screen.queryByText('Loading sets...')).not.toBeInTheDocument();
   });

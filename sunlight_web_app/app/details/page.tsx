@@ -13,8 +13,7 @@
 import { useState, useEffect } from 'react';
 import { getFirestore, collection, getDocs, query, where, DocumentData } from 'firebase/firestore';
 import { app } from '@/app/firebase';
-import { useSensorSets } from '@/app/hooks/useSensorSets';
-import usePersistentState from '@/app/hooks/usePersistentState';
+import { useSensorSelection } from '@/app/hooks/useSensorSelection';
 import SensorSetDropdown from '@/app/components/SensorSetDropdown';
 import StatusDisplay from '@/app/components/StatusDisplay';
 
@@ -34,26 +33,17 @@ export default function DetailsPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- State for the dropdown filter ---
-  const { sensorSets, loading: sensorSetsLoading, error: sensorSetsError } = useSensorSets();
-  const [selectedSensorSet, setSelectedSensorSet] = usePersistentState<string>('sensor-details-set', '');
-  const [timezone, setTimezone] = usePersistentState<string>('sensor-details-timezone', '');
-
-  // This effect now robustly synchronizes the timezone with the selected sensor set.
-  useEffect(() => {
-    if (sensorSets.length === 0) return;
-
-    let currentSet = sensorSets.find(s => s.id === selectedSensorSet);
-
-    if (!currentSet) {
-      currentSet = sensorSets[0];
-      setSelectedSensorSet(currentSet.id);
-    }
-
-    if (currentSet && timezone !== currentSet.timezone) {
-      setTimezone(currentSet.timezone);
-    }
-  }, [sensorSets, selectedSensorSet, timezone, setSelectedSensorSet, setTimezone]);
+  // --- Refactored State Management ---
+  const {
+    sensorSets,
+    sensorSetsLoading,
+    sensorSetsError,
+    selectedSensorSet,
+    timezone,
+    latitude,
+    longitude,
+    handleSensorSetChange,
+  } = useSensorSelection();
 
   // This effect re-fetches the sensor list whenever the selected set changes.
   useEffect(() => {
@@ -111,15 +101,18 @@ export default function DetailsPage() {
                             id="sensor-set-picker"
                             sensorSets={sensorSets}
                             selectedSensorSet={selectedSensorSet}
-                            onChange={(setId, newTimezone) => {
-                                setSelectedSensorSet(setId);
-                                setTimezone(newTimezone);
-                            }}
+                            onChange={handleSensorSetChange}
                         />
                     )}
                 </div>
                 {/* Timezone Display */}
                 {timezone && <span className="text-gray-400">Timezone: {timezone}</span>}
+                {/* Lat/Lon Display */}
+                {latitude !== null && longitude !== null && (
+                  <span className="text-gray-400">
+                    Lat: {latitude.toFixed(3)}, Lon: {longitude.toFixed(3)}
+                  </span>
+                )}
             </div>
 
             <StatusDisplay
@@ -135,24 +128,24 @@ export default function DetailsPage() {
                 <div className="overflow-x-auto">
                     <table className="min-w-full bg-gray-800 rounded-lg shadow">
                         <thead>
-                        <tr className="bg-gray-700">
-                            <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Sensor ID</th>
-                            <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Position X (ft)</th>
-                            <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Position Y (ft)</th>
-                            <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Board</th>
-                            <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Sunlight Sensor</th>
-                        </tr>
+                            <tr className="bg-gray-700">
+                                <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Sensor ID</th>
+                                <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Position X (ft)</th>
+                                <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Position Y (ft)</th>
+                                <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Board</th>
+                                <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Sunlight Sensor</th>
+                            </tr>
                         </thead>
                         <tbody>
-                        {sensors.map((sensor) => (
-                            <tr key={sensor.id} className="border-b border-gray-700 hover:bg-gray-600 transition-colors duration-200">
-                                <td className="p-3 whitespace-nowrap">{sensor.sensor_id}</td>
-                                <td className="p-3 whitespace-nowrap">{sensor.position_x_ft}</td>
-                                <td className="p-3 whitespace-nowrap">{sensor.position_y_ft}</td>
-                                <td className="p-3 whitespace-nowrap">{sensor.board}</td>
-                                <td className="p-3 whitespace-nowrap">{sensor.sunlight_sensor_model}</td>
-                            </tr>
-                        ))}
+                            {sensors.map((sensor) => (
+                                <tr key={sensor.id} className="border-b border-gray-700 hover:bg-gray-600 transition-colors duration-200">
+                                    <td className="p-3 whitespace-nowrap">{sensor.sensor_id}</td>
+                                    <td className="p-3 whitespace-nowrap">{sensor.position_x_ft}</td>
+                                    <td className="p-3 whitespace-nowrap">{sensor.position_y_ft}</td>
+                                    <td className="p-3 whitespace-nowrap">{sensor.board}</td>
+                                    <td className="p-3 whitespace-nowrap">{sensor.sunlight_sensor_model}</td>
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>

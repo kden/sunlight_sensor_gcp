@@ -12,12 +12,12 @@
 
 import { useState, useEffect } from 'react';
 import { DateTime } from 'luxon';
-import { useSensorSets } from '@/app/hooks/useSensorSets';
 import usePersistentState from '@/app/hooks/usePersistentState';
 import { useSensorLevelsData } from '@/app/hooks/useSensorLevelsData';
+import { useSensorSelection } from '@/app/hooks/useSensorSelection'; // <-- Import the new hook
 import Toolbar from './Toolbar';
 import SensorLevelsChart from './SensorLevelsChart';
-import StatusDisplay from './StatusDisplay'; // Import the new component
+import StatusDisplay from './StatusDisplay';
 
 const getTodayString = () => {
   return DateTime.local().toISODate();
@@ -29,43 +29,29 @@ const SensorLevels = () => {
 
   // State for user selections
   const [selectedDate, setSelectedDate] = usePersistentState('selectedDate', getTodayString());
-  const [selectedSensorSet, setSelectedSensorSet] = usePersistentState<string>('selectedSensorSet', '');
-  const [timezone, setTimezone] = useState('');
 
-  // Hooks for fetching metadata and data
-  const { sensorSets, loading: sensorSetsLoading, error: sensorSetsError } = useSensorSets();
+  // --- Refactored State Management ---
+  // All the complex sensor selection logic is now handled by this single hook.
+  const {
+    sensorSets,
+    sensorSetsLoading,
+    sensorSetsError,
+    selectedSensorSet,
+    timezone,
+    latitude,
+    longitude,
+    handleSensorSetChange,
+  } = useSensorSelection();
+
+  // Hooks for fetching chart-specific data
   const { readings, sensorIds, hourlyTicks, axisDomain, loading, error } = useSensorLevelsData(selectedDate, selectedSensorSet, timezone);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Effect to set a default sensor set if none is selected
-  useEffect(() => {
-    if (sensorSets.length > 0 && !selectedSensorSet) {
-      const defaultSet = sensorSets[0];
-      setSelectedSensorSet(defaultSet.id);
-      setTimezone(defaultSet.timezone);
-    }
-  }, [sensorSets, selectedSensorSet, setSelectedSensorSet]);
-
-  // Effect to update the timezone when the selected set changes
-  useEffect(() => {
-      if (selectedSensorSet && sensorSets.length > 0) {
-          const currentSet = sensorSets.find(s => s.id === selectedSensorSet);
-          if (currentSet) {
-              setTimezone(currentSet.timezone);
-          }
-      }
-  }, [selectedSensorSet, sensorSets]);
-
   const handleLegendClick = (dataKey: string) => {
-    setHighlightedSensor(current => (current === dataKey ? null : dataKey));
-  };
-
-  const handleSensorSetChange = (setId: string, newTimezone: string) => {
-    setSelectedSensorSet(setId);
-    setTimezone(newTimezone);
+    setHighlightedSensor(prev => (prev === dataKey ? null : dataKey));
   };
 
   if (!isMounted) {
@@ -83,6 +69,8 @@ const SensorLevels = () => {
         sensorSetsLoading={sensorSetsLoading}
         sensorSetsError={sensorSetsError}
         timezone={timezone}
+        latitude={latitude}
+        longitude={longitude}
       />
 
       <StatusDisplay

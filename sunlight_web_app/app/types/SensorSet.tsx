@@ -12,4 +12,6 @@ export interface SensorSet {
   id: string;
   name: string;
   timezone: string;
+  latitude: number | null;
+  longitude: number | null;
 }

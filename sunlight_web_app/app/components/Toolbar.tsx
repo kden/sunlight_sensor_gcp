@@ -16,11 +16,13 @@ interface ToolbarProps {
   selectedDate: string;
   onDateChange: (date: string) => void;
   selectedSensorSet: string;
-  onSensorSetChange: (setId: string, timezone: string) => void;
+  onSensorSetChange: (setId: string, timezone: string, latitude: number | null, longitude: number | null) => void;
   sensorSets: SensorSet[];
   sensorSetsLoading: boolean;
   sensorSetsError: string | null;
   timezone: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -32,6 +34,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
   sensorSetsLoading,
   sensorSetsError,
   timezone,
+  latitude,
+  longitude,
 }) => {
   return (
     <div className="mb-4 flex items-center flex-wrap gap-4">
@@ -64,6 +68,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
       {/* Timezone Display */}
       {timezone && <span className="text-gray-400">Timezone: {timezone}</span>}
+
+      {/* Lat/Lon Display */}
+      {latitude !== null && longitude !== null && (
+        <span className="text-gray-400">
+          Lat: {latitude.toFixed(3)}, Lon: {longitude.toFixed(3)}
+        </span>
+      )}
     </div>
   );
 };

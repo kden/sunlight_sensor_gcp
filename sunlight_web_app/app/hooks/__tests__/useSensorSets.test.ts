@@ -30,6 +30,8 @@ describe('useSensorSets Hook', () => {
   });
 
   it('should return the initial state correctly', () => {
+    mockedGetDocs.mockResolvedValue({ docs: [] });
+
     const { result } = renderHook(() => useSensorSets());
 
     expect(result.current.loading).toBe(true);
@@ -41,7 +43,12 @@ describe('useSensorSets Hook', () => {
     const mockSensorSetsData = [
       {
         id: 'set1',
-        data: () => ({ sensor_set_id: 'My First Sensor Set', timezone: 'America/New_York' }),
+        data: () => ({
+          sensor_set_id: 'My First Sensor Set',
+          timezone: 'America/New_York',
+          latitude: 40.7128,
+          longitude: -74.0060,
+        }),
       },
       {
         id: 'set2',
@@ -54,10 +61,11 @@ describe('useSensorSets Hook', () => {
       },
     ];
 
+    // FIX: Update the expected data to match the hook's new return shape.
     const expectedSensorSets: SensorSet[] = [
-      { id: 'set1', name: 'My First Sensor Set', timezone: 'America/New_York' },
-      { id: 'set2', name: 'My Second Sensor Set', timezone: 'Europe/London' },
-      { id: 'set3-fallback', name: 'set3-fallback', timezone: 'UTC' },
+      { id: 'set1', name: 'My First Sensor Set', timezone: 'America/New_York', latitude: 40.7128, longitude: -74.0060 },
+      { id: 'set2', name: 'My Second Sensor Set', timezone: 'Europe/London', latitude: null, longitude: null },
+      { id: 'set3-fallback', name: 'set3-fallback', timezone: 'UTC', latitude: null, longitude: null },
     ];
 
     // Mock the resolved value of getDocs

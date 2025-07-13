@@ -11,13 +11,13 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSensorSets } from '@/app/hooks/useSensorSets';
 import { DateTime } from 'luxon';
 import usePersistentState from '@/app/hooks/usePersistentState';
+import { useSensorHeatmapData } from '@/app/hooks/useSensorHeatmapData';
+import { useSensorSelection } from '@/app/hooks/useSensorSelection';
 import Toolbar from './Toolbar';
 import StatusDisplay from './StatusDisplay';
 import SensorHeatmapChart from './SensorHeatmapChart';
-import { useSensorHeatmapData } from '@/app/hooks/useSensorHeatmapData'; // Import the new hook
 
 // --- Interfaces and Constants ---
 interface ChartDataPoint {
@@ -40,35 +40,25 @@ const SensorHeatmap = () => {
 
   // --- State for user selections ---
   const [selectedDate, setSelectedDate] = usePersistentState('selectedDate', getTodayString());
-  const [selectedSensorSet, setSelectedSensorSet] = usePersistentState<string>('selectedSensorSet', '');
-  const [timezone, setTimezone] = useState('');
+
+  // --- Refactored State Management ---
+  const {
+    sensorSets,
+    sensorSetsLoading,
+    sensorSetsError,
+    selectedSensorSet,
+    timezone,
+    latitude,
+    longitude,
+    handleSensorSetChange,
+  } = useSensorSelection();
 
   // --- Custom hooks for data fetching ---
-  const { sensorSets, loading: sensorSetsLoading, error: sensorSetsError } = useSensorSets();
   const { sensorMetadata, readings, timestamps, loading, error } = useSensorHeatmapData(selectedDate, selectedSensorSet, timezone);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
-  // Effect to set a default sensor set if none is selected
-  useEffect(() => {
-    if (sensorSets.length > 0 && !selectedSensorSet) {
-      const defaultSet = sensorSets[0];
-      setSelectedSensorSet(defaultSet.id);
-      setTimezone(defaultSet.timezone);
-    }
-  }, [sensorSets, selectedSensorSet, setSelectedSensorSet]);
-
-  // Effect to update the timezone when the selected set changes
-  useEffect(() => {
-    if (selectedSensorSet && sensorSets.length > 0) {
-      const currentSet = sensorSets.find(s => s.id === selectedSensorSet);
-      if (currentSet) {
-        setTimezone(currentSet.timezone);
-      }
-    }
-  }, [selectedSensorSet, sensorSets]);
 
   // Effect to reset the time slider when the data changes
   useEffect(() => {
@@ -91,11 +81,6 @@ const SensorHeatmap = () => {
     setChartData(newChartData);
   }, [currentTimeIndex, readings, sensorMetadata, timestamps]);
 
-  const handleSensorSetChange = (setId: string, newTimezone: string) => {
-    setSelectedSensorSet(setId);
-    setTimezone(newTimezone);
-  };
-
   if (!isMounted) {
     return null;
   }
@@ -111,6 +96,8 @@ const SensorHeatmap = () => {
         sensorSetsLoading={sensorSetsLoading}
         sensorSetsError={sensorSetsError}
         timezone={timezone}
+        latitude={latitude}
+        longitude={longitude}
       />
 
       <StatusDisplay

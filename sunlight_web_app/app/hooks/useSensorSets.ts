@@ -29,6 +29,9 @@ export const useSensorSets = () => {
           id: doc.id,
           name: doc.data().sensor_set_id || doc.id,
           timezone: doc.data().timezone || 'UTC',
+          // Add latitude and longitude, defaulting to null if not present
+          latitude: doc.data().latitude ?? null,
+          longitude: doc.data().longitude ?? null,
         }));
         setSensorSets(sets);
       } catch (err) {
