@@ -15,9 +15,11 @@ import { DateTime } from 'luxon';
 import usePersistentState from '@/app/hooks/usePersistentState';
 import { useSensorHeatmapData } from '@/app/hooks/useSensorHeatmapData';
 import { useSensorSelection } from '@/app/hooks/useSensorSelection';
+import { useDailyWeather } from '@/app/hooks/useDailyWeather';
 import Toolbar from './Toolbar';
 import StatusDisplay from './StatusDisplay';
 import SensorHeatmapChart from './SensorHeatmapChart';
+import WeatherDataTable from './WeatherDataTable';
 
 // --- Interfaces and Constants ---
 interface ChartDataPoint {
@@ -55,6 +57,7 @@ const SensorHeatmap = () => {
 
   // --- Custom hooks for data fetching ---
   const { sensorMetadata, readings, timestamps, loading, error } = useSensorHeatmapData(selectedDate, selectedSensorSet, timezone);
+  const { weatherData, loading: weatherLoading, error: weatherError } = useDailyWeather(selectedDate, selectedSensorSet);
 
   useEffect(() => {
     setIsMounted(true);
@@ -135,6 +138,19 @@ const SensorHeatmap = () => {
           </div>
         </div>
       )}
+
+      {/* --- Daily Weather Summary Section --- */}
+      <div className="mt-8">
+        {weatherLoading && <p className="text-center mt-4">Loading daily weather...</p>}
+        {weatherError && <p className="text-red-500 text-center mt-4">{weatherError}</p>}
+        {weatherData && timezone && (
+          <WeatherDataTable data={weatherData} timezone={timezone} />
+        )}
+        {/* Show a message if the weather data fetch is complete but no data was found */}
+        {!weatherLoading && !weatherError && !weatherData && (
+            <p className="text-center mt-4">No daily weather summary available for this date.</p>
+        )}
+      </div>
     </div>
   );
 };

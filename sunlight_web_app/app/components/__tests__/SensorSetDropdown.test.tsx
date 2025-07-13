@@ -45,7 +45,6 @@ describe('SensorSetDropdown Component', () => {
     const dropdown = screen.getByRole('combobox');
     fireEvent.change(dropdown, { target: { value: 'set-2' } });
 
-    // FIX: Update the assertion to expect all four arguments.
     expect(mockOnChange).toHaveBeenCalledWith('set-2', 'America/Chicago', 41.878, -87.629);
   });
 

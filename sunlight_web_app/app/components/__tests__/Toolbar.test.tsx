@@ -27,7 +27,6 @@ describe('Toolbar Component', () => {
 
   // A helper function to render the component with default props
   const renderToolbar = (props = {}) => {
-    // FIX: Add latitude and longitude to the default props.
     const defaultProps = {
       selectedDate: '2024-01-15',
       onDateChange: mockOnDateChange,

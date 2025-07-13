@@ -75,6 +75,8 @@ type WeatherRecord struct {
 	DataSource         string    `bigquery:"data_source"`
 	SensorSet          string    `bigquery:"sensor_set_id"`
 	Timezone           string    `bigquery:"timezone"`
+	Latitude           float64   `bigquery:"latitude"`
+	Longitude          float64   `bigquery:"longitude"`
 }
 
 // DailyWeatherer is the entry point for the Cloud Function.
@@ -131,7 +133,7 @@ func DailyWeatherer(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Insert weather data into BigQuery
-	if err := insertWeatherData(ctx, client, projectID, sensorSet, sensorSetData.Timezone, weatherData); err != nil {
+	if err := insertWeatherData(ctx, client, projectID, sensorSet, sensorSetData, weatherData); err != nil {
 		log.Printf("ERROR: Failed to insert weather data: %v", err)
 		http.Error(w, fmt.Sprintf("Failed to insert weather data: %v", err), http.StatusInternalServerError)
 		return
@@ -177,8 +179,8 @@ func getSensorSet(ctx context.Context, client *bigquery.Client, projectID, senso
 
 func getWeatherData(sensorSet *SensorSet, startDate, endDate string) (*MeteoResponse, error) {
 	url := fmt.Sprintf(
-		"https://api.open-meteo.com/v1/forecast?latitude=%f&longitude=%f&daily=sunrise,sunset,daylight_duration,sunshine_duration,temperature_2m_max,temperature_2m_min,uv_index_max,uv_index_clear_sky_max,rain_sum,showers_sum,precipitation_sum,snowfall_sum,precipitation_hours&timezone=%s&start_date=%s&end_date=%s",
-		sensorSet.Latitude, sensorSet.Longitude, sensorSet.Timezone, startDate, endDate,
+		"https://api.open-meteo.com/v1/forecast?latitude=%f&longitude=%f&daily=sunrise,sunset,daylight_duration,sunshine_duration,temperature_2m_max,temperature_2m_min,uv_index_max,uv_index_clear_sky_max,rain_sum,showers_sum,precipitation_sum,snowfall_sum,precipitation_hours&start_date=%s&end_date=%s",
+		sensorSet.Latitude, sensorSet.Longitude, startDate, endDate,
 	)
 	log.Printf("INFO: Calling Open-Meteo API: %s", url)
 
@@ -206,7 +208,7 @@ func getWeatherData(sensorSet *SensorSet, startDate, endDate string) (*MeteoResp
 	return &meteoResp, nil
 }
 
-func insertWeatherData(ctx context.Context, client *bigquery.Client, projectID, sensorSetID, timezone string, weatherData *MeteoResponse) error {
+func insertWeatherData(ctx context.Context, client *bigquery.Client, projectID, sensorSetID string, sensorSetData *SensorSet, weatherData *MeteoResponse) error {
 	log.Printf("INFO: Preparing to insert %d weather records into BigQuery.", len(weatherData.Daily.Time))
 	for i, t := range weatherData.Daily.Time {
 		sunrise, _ := time.Parse("2006-01-02T15:04", weatherData.Daily.Sunrise[i])
@@ -214,24 +216,27 @@ func insertWeatherData(ctx context.Context, client *bigquery.Client, projectID, 
 
 		q := client.Query(fmt.Sprintf(`
 			MERGE `+"`%s.sunlight_data.daily_historical_weather`"+` T
-			USING (SELECT
-				CAST(@date AS DATE) as date,
-				@sunrise as sunrise,
-				@sunset as sunset,
-				@daylight_duration as daylight_duration,
-				@sunshine_duration as sunshine_duration,
-				@temperature_2m_max as temperature_2m_max,
-				@temperature_2m_min as temperature_2m_min,
-				@uv_index_max as uv_index_max,
-				@uv_index_clear_sky_max as uv_index_clear_sky_max,
-				@rain_sum as rain_sum,
-				@showers_sum as showers_sum,
-				@precipitation_sum as precipitation_sum,
-				@snowfall_sum as snowfall_sum,
-				@precipitation_hour as precipitation_hour,
-				@data_source as data_source,
-				@sensor_set_id as sensor_set_id,
-				@timezone as timezone
+			USING (
+				SELECT
+					CAST(@date AS DATE) as date,
+					@sunrise as sunrise,
+					@sunset as sunset,
+					@daylight_duration as daylight_duration,
+					@sunshine_duration as sunshine_duration,
+					@temperature_2m_max as temperature_2m_max,
+					@temperature_2m_min as temperature_2m_min,
+					@uv_index_max as uv_index_max,
+					@uv_index_clear_sky_max as uv_index_clear_sky_max,
+					@rain_sum as rain_sum,
+					@showers_sum as showers_sum,
+					@precipitation_sum as precipitation_sum,
+					@snowfall_sum as snowfall_sum,
+					@precipitation_hour as precipitation_hour,
+					@data_source as data_source,
+					@sensor_set_id as sensor_set_id,
+					@timezone as timezone,
+					@latitude as latitude,
+					@longitude as longitude
 			) S
 			ON T.date = S.date AND T.sensor_set_id = S.sensor_set_id
 			WHEN MATCHED THEN
@@ -250,10 +255,12 @@ func insertWeatherData(ctx context.Context, client *bigquery.Client, projectID, 
 					snowfall_sum = S.snowfall_sum,
 					precipitation_hour = S.precipitation_hour,
 					data_source = S.data_source,
-					timezone = S.timezone
+					timezone = S.timezone,
+					latitude = S.latitude,
+					longitude = S.longitude
 			WHEN NOT MATCHED THEN
-				INSERT (date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hour, data_source, sensor_set_id, timezone)
-				VALUES(date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hour, data_source, sensor_set_id, timezone)
+				INSERT (date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hour, data_source, sensor_set_id, timezone, latitude, longitude)
+				VALUES(date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hour, data_source, sensor_set_id, timezone, latitude, longitude)
 		`, projectID))
 
 		q.Parameters = []bigquery.QueryParameter{
@@ -273,7 +280,9 @@ func insertWeatherData(ctx context.Context, client *bigquery.Client, projectID, 
 			{Name: "precipitation_hour", Value: weatherData.Daily.PrecipitationHours[i]},
 			{Name: "data_source", Value: "open-meteo"},
 			{Name: "sensor_set_id", Value: sensorSetID},
-			{Name: "timezone", Value: timezone},
+			{Name: "timezone", Value: sensorSetData.Timezone},
+			{Name: "latitude", Value: sensorSetData.Latitude},
+			{Name: "longitude", Value: sensorSetData.Longitude},
 		}
 
 		job, err := q.Run(ctx)

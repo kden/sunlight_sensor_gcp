@@ -61,7 +61,6 @@ describe('useSensorSets Hook', () => {
       },
     ];
 
-    // FIX: Update the expected data to match the hook's new return shape.
     const expectedSensorSets: SensorSet[] = [
       { id: 'set1', name: 'My First Sensor Set', timezone: 'America/New_York', latitude: 40.7128, longitude: -74.0060 },
       { id: 'set2', name: 'My Second Sensor Set', timezone: 'Europe/London', latitude: null, longitude: null },

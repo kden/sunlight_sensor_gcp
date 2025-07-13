@@ -1,7 +1,8 @@
 /*
  * SensorLevelsChart.tsx
  *
- * Renders a line graph of the sensor levels over time for a particular day.
+ * Renders a line graph of the sensor levels over time for a particular day,
+ * with vertical lines indicating sunrise and sunset.
  *
  * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
  * Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
@@ -18,6 +19,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ReferenceLine, // 1. Import ReferenceLine
 } from 'recharts';
 import { DateTime } from 'luxon';
 
@@ -34,6 +36,9 @@ interface SensorLevelsChartProps {
   timezone: string;
   highlightedSensor: string | null;
   onLegendClick: (dataKey: string) => void;
+  // 2. Add sunrise and sunset to the props
+  sunrise: DateTime | null;
+  sunset: DateTime | null;
 }
 
 const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#387908', '#d0ed57'];
@@ -46,6 +51,8 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
   timezone,
   highlightedSensor,
   onLegendClick,
+  sunrise, // 3. Destructure the new props
+  sunset,
 }) => {
   return (
     <ResponsiveContainer width="100%" height={400}>
@@ -77,6 +84,35 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
             }
           }}
         />
+
+        {/* 4. Add the ReferenceLine components for sunrise and sunset */}
+        {sunrise && (
+          <ReferenceLine
+            x={sunrise.toMillis()}
+            stroke="yellow"
+            strokeDasharray="3 3"
+            label={{
+              value: 'Sunrise',
+              position: 'insideTopRight',
+              fill: 'yellow',
+              fontSize: 12,
+            }}
+          />
+        )}
+        {sunset && (
+          <ReferenceLine
+            x={sunset.toMillis()}
+            stroke="orange"
+            strokeDasharray="3 3"
+            label={{
+              value: 'Sunset',
+              position: 'insideTopRight',
+              fill: 'orange',
+              fontSize: 12,
+            }}
+          />
+        )}
+
         {sensorIds.map((id, index) => (
           <Line
             key={id}

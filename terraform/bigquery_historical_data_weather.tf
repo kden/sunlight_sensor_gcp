@@ -103,12 +103,6 @@ resource "google_bigquery_table" "daily_historical_weather" {
     "description": "The number of hours with precipitation."
   },
   {
-    "name": "data_source",
-    "type": "STRING",
-    "mode": "NULLABLE",
-    "description": "The source of the weather data."
-  },
-  {
     "name": "sensor_set_id",
     "type": "STRING",
     "mode": "NULLABLE",
@@ -119,6 +113,24 @@ resource "google_bigquery_table" "daily_historical_weather" {
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "Timezone of the weather location."
+  },
+  {
+    "name": "latitude",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Latitude of weather location."
+  },
+  {
+    "name": "longitude",
+    "type": "FLOAT",
+    "mode": "NULLABLE",
+    "description": "Longitude of weather location."
+  },
+  {
+    "name": "data_source",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "The source of the weather data."
   }
 ]
 EOF

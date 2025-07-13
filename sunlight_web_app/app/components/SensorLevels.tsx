@@ -14,10 +14,12 @@ import { useState, useEffect } from 'react';
 import { DateTime } from 'luxon';
 import usePersistentState from '@/app/hooks/usePersistentState';
 import { useSensorLevelsData } from '@/app/hooks/useSensorLevelsData';
-import { useSensorSelection } from '@/app/hooks/useSensorSelection'; // <-- Import the new hook
+import { useSensorSelection } from '@/app/hooks/useSensorSelection';
+import { useDailyWeather } from '@/app/hooks/useDailyWeather';
 import Toolbar from './Toolbar';
 import SensorLevelsChart from './SensorLevelsChart';
 import StatusDisplay from './StatusDisplay';
+import WeatherDataTable from './WeatherDataTable';
 
 const getTodayString = () => {
   return DateTime.local().toISODate();
@@ -31,7 +33,6 @@ const SensorLevels = () => {
   const [selectedDate, setSelectedDate] = usePersistentState('selectedDate', getTodayString());
 
   // --- Refactored State Management ---
-  // All the complex sensor selection logic is now handled by this single hook.
   const {
     sensorSets,
     sensorSetsLoading,
@@ -45,6 +46,9 @@ const SensorLevels = () => {
 
   // Hooks for fetching chart-specific data
   const { readings, sensorIds, hourlyTicks, axisDomain, loading, error } = useSensorLevelsData(selectedDate, selectedSensorSet, timezone);
+  // Fetch weather data
+  const { weatherData, loading: weatherLoading, error: weatherError } = useDailyWeather(selectedDate, selectedSensorSet);
+
 
   useEffect(() => {
     setIsMounted(true);
@@ -91,8 +95,25 @@ const SensorLevels = () => {
           timezone={timezone}
           highlightedSensor={highlightedSensor}
           onLegendClick={handleLegendClick}
+          // Pass the sunrise and sunset data down to the chart.
+          // We use optional chaining `?.` in case weatherData is still loading.
+          sunrise={weatherData?.sunrise ?? null}
+          sunset={weatherData?.sunset ?? null}
         />
       )}
+
+      {/* Render the Daily Weather Summary Section */}
+      <div className="mt-8">
+        {weatherLoading && <p className="text-center mt-4">Loading daily weather...</p>}
+        {weatherError && <p className="text-red-500 text-center mt-4">{weatherError}</p>}
+        {weatherData && timezone && (
+          <WeatherDataTable data={weatherData} timezone={timezone} />
+        )}
+        {/* Show a message if the weather data fetch is complete but no data was found */}
+        {!weatherLoading && !weatherError && !weatherData && (
+            <p className="text-center mt-4">No daily weather summary available for this date.</p>
+        )}
+      </div>
     </div>
   );
 };

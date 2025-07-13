@@ -76,6 +76,10 @@ resource "google_firebaserules_ruleset" "default_firestore_rules" {
               allow read: if true;
               allow write: if false; // Disallow public writes
             }
+            match /daily_weather/{dailyId} {
+              allow read: if true;
+              allow write: if false; // Disallow public writes
+            }
           }
         }
       EOT
