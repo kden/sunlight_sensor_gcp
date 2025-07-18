@@ -39,6 +39,7 @@ const SensorHeatmap = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+  const [maxIntensity, setMaxIntensity] = useState(10000);
 
   // --- State for user selections ---
   const [selectedDate, setSelectedDate] = usePersistentState('selectedDate', getTodayString());
@@ -62,6 +63,23 @@ const SensorHeatmap = () => {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Calculate the maximum intensity from all readings for the day.
+  // This is used to scale the colors in the heatmap.
+  useEffect(() => {
+    if (readings && Object.keys(readings).length > 0) {
+      // First, flatten all potential readings from the nested object into a single array.
+      const allValues = Object.values(readings).flatMap(timestampReadings => Object.values(timestampReadings));
+      // Next, filter this array to include only numbers, which also acts as a type guard for TypeScript.
+      const allIntensities = allValues.filter((v): v is number => typeof v === 'number');
+      const maxVal = Math.max(0, ...allIntensities);
+
+      // Use the actual max value for accurate color scaling. Default to 10000 if no data.
+      setMaxIntensity(maxVal > 0 ? maxVal : 10000);
+    } else {
+      setMaxIntensity(10000);
+    }
+  }, [readings]);
 
   // Effect to reset the time slider when the data changes
   useEffect(() => {
@@ -117,6 +135,7 @@ const SensorHeatmap = () => {
             chartData={chartData}
             yardLength={YARD_LENGTH}
             yardWidth={YARD_WIDTH}
+            maxIntensity={maxIntensity}
           />
 
           <div className="mt-4">

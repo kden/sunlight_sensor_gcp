@@ -29,19 +29,8 @@ interface SensorHeatmapChartProps {
     chartData: ChartDataPoint[];
     yardLength: number;
     yardWidth: number;
+    maxIntensity: number;
 }
-
-// --- Helper Functions for Chart Rendering ---
-
-const calculateFillColor = (intensity: number | undefined) => {
-    if (intensity === undefined) {
-      return 'hsl(0, 0%, 20%)'; // Dim gray for sensors with no data
-    }
-    // HSL: Hue=60 (yellow), Saturation=100%, Lightness varies from 20% to 80%
-    const lightness = 20 + (intensity / 10000) * 60;
-    return `hsl(60, 100%, ${lightness}%)`;
-};
-
 
 const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) => {
     if (active && payload && payload.length) {
@@ -56,15 +45,31 @@ const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) =
     return null;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const renderCircle = (props: any) => {
-    const { cx, cy, payload } = props;
-    const fillColor = calculateFillColor(payload.z);
-    return <circle cx={cx} cy={cy} r={10} fill={fillColor} />;
-};
+const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yardLength, yardWidth, maxIntensity }) => {
+    // --- Helper Functions for Chart Rendering ---
 
+    // This function calculates the fill color based on light intensity.
+    // It's defined inside the component to access the `maxIntensity` prop.
+    const calculateFillColor = (intensity: number | undefined) => {
+        if (intensity === undefined) {
+          return 'hsl(0, 0%, 20%)'; // Dim gray for sensors with no data
+        }
+        // HSL: Hue=60 (yellow), Saturation=100%, Lightness varies from 20% to 80%
+        // Use maxIntensity for the scale, ensuring we don't divide by zero.
+        const effectiveMaxIntensity = maxIntensity > 0 ? maxIntensity : 1;
+        const lightness = 20 + (intensity / effectiveMaxIntensity) * 60;
+        return `hsl(60, 100%, ${lightness}%)`;
+    };
 
-const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yardLength, yardWidth }) => {
+    // This function renders the custom circle for each data point.
+    // It's also defined inside to use the `calculateFillColor` function from the component's scope.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const renderCircle = (props: any) => {
+        const { cx, cy, payload } = props;
+        const fillColor = calculateFillColor(payload.z);
+        return <circle cx={cx} cy={cy} r={10} fill={fillColor} />;
+    };
+
     return (
         <div className="w-full relative" style={{aspectRatio: `${yardLength}/${yardWidth}`}}>
             <ResponsiveContainer width="100%" height="100%">

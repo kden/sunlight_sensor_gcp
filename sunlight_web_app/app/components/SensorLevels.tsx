@@ -28,6 +28,7 @@ const getTodayString = () => {
 const SensorLevels = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [highlightedSensor, setHighlightedSensor] = useState<string | null>(null);
+  const [maxIntensity, setMaxIntensity] = useState(10000);
 
   // State for user selections
   const [selectedDate, setSelectedDate] = usePersistentState('selectedDate', getTodayString());
@@ -53,6 +54,23 @@ const SensorLevels = () => {
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  // Calculate the maximum intensity from the day's readings to set the Y-axis domain.
+  useEffect(() => {
+    if (readings && readings.length > 0 && sensorIds && sensorIds.length > 0) {
+      const maxVal = readings.reduce((max, current) => {
+        const readingMax = Math.max(...sensorIds.map(id => (current[id] as number) || 0));
+        return Math.max(max, readingMax);
+      }, 0);
+      // If we found a max value, round it up to the nearest 1000 for a cleaner axis.
+      // Otherwise, keep the default.
+      if (maxVal > 0) {
+        setMaxIntensity(Math.ceil(maxVal / 1000) * 1000);
+      } else {
+        setMaxIntensity(10000); // Default if no data
+      }
+    }
+  }, [readings, sensorIds]);
 
   const handleLegendClick = (dataKey: string) => {
     setHighlightedSensor(prev => (prev === dataKey ? null : dataKey));
@@ -99,6 +117,7 @@ const SensorLevels = () => {
           // We use optional chaining `?.` in case weatherData is still loading.
           sunrise={weatherData?.sunrise ?? null}
           sunset={weatherData?.sunset ?? null}
+          maxIntensity={maxIntensity}
         />
       )}
 

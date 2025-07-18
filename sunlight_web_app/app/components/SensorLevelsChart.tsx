@@ -39,6 +39,7 @@ interface SensorLevelsChartProps {
   // 2. Add sunrise and sunset to the props
   sunrise: DateTime | null;
   sunset: DateTime | null;
+  maxIntensity: number;
 }
 
 const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#387908', '#d0ed57'];
@@ -53,6 +54,7 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
   onLegendClick,
   sunrise, // 3. Destructure the new props
   sunset,
+  maxIntensity,
 }) => {
   return (
     <ResponsiveContainer width="100%" height={400}>
@@ -68,7 +70,7 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
           }
           stroke="#ccc"
         />
-        <YAxis stroke="#ccc" domain={[0, 10000]} allowDataOverflow={true} />
+        <YAxis stroke="#ccc" domain={[0, maxIntensity]} allowDataOverflow={true} />
         <Tooltip
           contentStyle={{ backgroundColor: '#333', border: '1px solid #555' }}
           labelStyle={{ color: '#fff' }}
