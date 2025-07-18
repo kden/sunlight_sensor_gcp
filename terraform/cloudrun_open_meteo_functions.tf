@@ -68,7 +68,7 @@ output "open_meteo_importer_url" {
   description = "The default URL of the deployed Open-Meteo daily importer function."
 }
 
-# --- 1. Create a dedicated Service Account for the Scheduler Job ---
+# --- 2. Create a dedicated Service Account for the Scheduler Job ---
 # This is a best practice for security, ensuring the scheduler has only the
 # permissions it needs to invoke the function.
 resource "google_service_account" "daily_weather_invoker_sa" {
@@ -77,7 +77,7 @@ resource "google_service_account" "daily_weather_invoker_sa" {
   display_name = "Service Account for Daily Weather Importer Scheduler"
 }
 
-# --- 2. Grant the Service Account permission to invoke the Cloud Function ---
+# --- 3. Grant the Service Account permission to invoke the Cloud Function ---
 # The "roles/run.invoker" role allows this service account to call the private
 # Cloud Function.
 resource "google_cloud_run_service_iam_member" "allow_weather_invoker" {
@@ -88,20 +88,42 @@ resource "google_cloud_run_service_iam_member" "allow_weather_invoker" {
   member   = "serviceAccount:${google_service_account.daily_weather_invoker_sa.email}"
 }
 
-# --- 3. Define the Cloud Scheduler Job ---
+# --- 4. Define Scheduler Configurations in a Local Variable ---
+# This map defines the unique properties for each scheduler job.
+# The key of the map ('test', 'backyard') will be used for the sensor_set_id
+# and to create a unique job name.
+locals {
+  weather_scheduler_configs = {
+    test = {
+      schedule    = "0 1 * * *" # Runs at 1:00 AM
+      description = "Triggers the daily Open-Meteo weather data import for the 'test' sensor set."
+    },
+    backyard = {
+      schedule    = "5 1 * * *" # Runs at 1:05 AM
+      description = "Triggers the daily Open-Meteo weather data import for the 'backyard' sensor set."
+    }
+  }
+}
+
+# --- 5. Define the Cloud Scheduler Jobs using for_each ---
+# This single resource block will create a scheduler job for each entry in the
+# local.weather_scheduler_configs map.
 resource "google_cloud_scheduler_job" "invoke_daily_weather_importer" {
-  project  = var.gcp_project_id
-  name     = "daily-open-meteo-importer-trigger"
-  region   = var.region
-  schedule = "0 1 * * *" # Runs every day at 1:00 AM
-  time_zone = "America/Chicago" # Timezone for the schedule
-  description = "Triggers the daily Open-Meteo weather data import for the 'test' sensor set."
+  for_each = local.weather_scheduler_configs
+
+  project     = var.gcp_project_id
+  # Use each.key to create a unique name, e.g., "daily-open-meteo-importer-test"
+  name        = "daily-open-meteo-importer-${each.key}"
+  region      = var.region
+  schedule    = each.value.schedule
+  time_zone   = "America/Chicago"
+  description = each.value.description
 
   # Configure the job to target an HTTP endpoint (our Cloud Function)
   http_target {
     # The URI of the Cloud Function to invoke.
-    # We append the sensor_set_id parameter here. The function will handle the date range.
-    uri = "${google_cloudfunctions2_function.open_meteo_daily_importer_function.service_config[0].uri}?sensor_set_id=test"
+    # We append the sensor_set_id parameter using the key from our map.
+    uri         = "${google_cloudfunctions2_function.open_meteo_daily_importer_function.service_config[0].uri}?sensor_set_id=${each.key}"
     http_method = "POST" # POST is standard for scheduler-triggered functions
 
     # This block configures authentication. The scheduler will use the service
@@ -109,7 +131,7 @@ resource "google_cloud_scheduler_job" "invoke_daily_weather_importer" {
     oidc_token {
       service_account_email = google_service_account.daily_weather_invoker_sa.email
       # The 'audience' should be the URI of the function being called.
-      audience = google_cloudfunctions2_function.open_meteo_daily_importer_function.service_config[0].uri
+      audience              = google_cloudfunctions2_function.open_meteo_daily_importer_function.service_config[0].uri
     }
   }
 
