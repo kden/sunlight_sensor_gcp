@@ -7,6 +7,7 @@ The levels are based on a sine wave pattern squashed under a
 bell curve to make an easily-recognizable continuous pattern.
 
 Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
 Apache 2.0 Licensed as described in the file LICENSE
 """
 
@@ -21,6 +22,7 @@ from pytz import timezone
 SENSOR_ID = os.getenv('SENSOR_ID', 'test_sensor')
 SENSOR_API_URL = os.getenv('SENSOR_API_URL', '')
 BEARER_TOKEN = os.getenv('BEARER_TOKEN', 'xxx')
+MAX_LUX = 10000
 
 def generate_light_intensity(minute, phase_shift=0):
     """
@@ -31,7 +33,7 @@ def generate_light_intensity(minute, phase_shift=0):
         phase_shift (float): Phase shift in radians to offset the sine wave
 
     Returns:
-        float: Light intensity between 10 and 10000
+        float: Light intensity between 10 and MAX_LUX
     """
     # Sine wave component
     period_minutes = 120  # 2 hours
@@ -44,7 +46,7 @@ def generate_light_intensity(minute, phase_shift=0):
     bell_curve = math.exp(-((minute - peak_minute) ** 2) / (2 * std_dev ** 2))
 
     # Combine sine wave and bell curve
-    max_intensity = bell_curve * (10000 - 10)  # Scale bell curve to max intensity
+    max_intensity = bell_curve * (MAX_LUX - 10)  # Scale bell curve to max intensity
     light = sine_value * max_intensity + 10  # Add minimum intensity
     return light
 
