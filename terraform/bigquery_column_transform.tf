@@ -52,6 +52,12 @@ resource "google_bigquery_table" "transformed_sunlight_table" {
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "The set of sensors this metadata belongs to"
+  },
+  {
+    "name": "last_updated",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Timestamp of when this transformed row was created."
   }
 ]
 EOF
@@ -97,9 +103,10 @@ resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
       WITH ParsedData AS (
         -- First, parse and unnest the raw JSON data
         SELECT
-          CAST(JSON_EXTRACT_SCALAR(reading, '$.light_intensity') AS FLOAT64) as light_intensity,
+          CAST(JSON_EXTRACT_SCALAR(reading, '$.light_intensity') AS FLOAT64) AS light_intensity,
           JSON_EXTRACT_SCALAR(reading, '$.sensor_id') as sensor_id,
-          CAST(JSON_EXTRACT_SCALAR(reading, '$.timestamp') AS TIMESTAMP) as timestamp,
+          JSON_EXTRACT_SCALAR(reading, '$.sensor_set_id') AS sensor_set_id,
+          CAST(JSON_EXTRACT_SCALAR(reading, '$.timestamp') AS TIMESTAMP) AS timestamp,
           source_table.ingestion_time
         FROM
           `${google_bigquery_table.sunlight_table.project}.${google_bigquery_table.sunlight_table.dataset_id}.${google_bigquery_table.sunlight_table.table_id}` AS source_table,
@@ -114,19 +121,16 @@ resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
             TIMESTAMP('1970-01-01 00:00:00 UTC')
           )
       )
-      -- Final selection, joining with sensor metadata to add the sensor_set
+      -- Final selection of the parsed data.
       SELECT
         pd.light_intensity,
         pd.sensor_id,
         pd.timestamp,
         pd.ingestion_time,
-        meta.sensor_set_id
+        pd.sensor_set_id,
+        CURRENT_TIMESTAMP() AS last_updated
       FROM
         ParsedData AS pd
-      LEFT JOIN
-        `${google_bigquery_table.sensor_table.project}.${google_bigquery_table.sensor_table.dataset_id}.${google_bigquery_table.sensor_table.table_id}` AS meta
-      ON
-        pd.sensor_id = meta.sensor_id
       -- Ensure essential fields are not null after parsing
       WHERE pd.light_intensity IS NOT NULL
         AND pd.sensor_id IS NOT NULL
