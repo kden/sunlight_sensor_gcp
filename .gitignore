@@ -83,3 +83,7 @@ terraform.rc
 **/functions/*/*.zip
 **/junit.xml
 **/pglite-debug.log
+/scripts/math
+/scripts/os
+/scripts/random
+/scripts/requests
