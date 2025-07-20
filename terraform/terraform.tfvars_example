@@ -17,3 +17,6 @@ secret_bearer_token = "my-secret-token"
 sensor_metadata_filename = "sensor_metadata.json"
 
 sensor_set_metadata_filename = "sensor_set_metadata.json"
+
+alert_email_address = "lucy@example.com"
+alert_phone_number = "+1234567890"
