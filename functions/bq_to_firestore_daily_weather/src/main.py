@@ -8,7 +8,7 @@ Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025
 Apache 2.0 Licensed as described in the file LICENSE
 """
 from google.cloud import bigquery, firestore
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 # --- Configuration ---
 # The BigQuery dataset and table to read from.
@@ -25,7 +25,7 @@ METADATA_DOC_ID = "bq_to_fs_weather_last_run"
 def export_weather_to_firestore(event, context):
     """
     Triggered by a Pub/Sub message. Fetches new historical weather data
-    from BigQuery and writes it to Firestore.
+    from BigQuery and writes it to Firestore, ensuring correct timestamp handling.
     """
     firestore_client = firestore.Client()
     bigquery_client = bigquery.Client()
@@ -37,7 +37,6 @@ def export_weather_to_firestore(event, context):
     metadata_ref = firestore_client.collection("bq_export_metadata").document(METADATA_DOC_ID)
     metadata_doc = metadata_ref.get()
 
-    # Default to a very early date if no metadata is found.
     last_processed_date = "1970-01-01"
     if metadata_doc.exists:
         last_processed_date = metadata_doc.to_dict().get("last_processed_date", last_processed_date)
@@ -45,8 +44,6 @@ def export_weather_to_firestore(event, context):
     print(f"Last processed date: {last_processed_date}")
 
     # Query BigQuery for new rows
-    # This query selects all fields from the historical weather table for dates
-    # that have not yet been processed.
     query = f"""
         SELECT
             *
@@ -69,49 +66,69 @@ def export_weather_to_firestore(event, context):
 
     print(f"Found {len(rows)} new rows to process.")
 
-    # Write new data to Firestore in batches
     batch = firestore_client.batch()
-    max_processed_date = None
+    max_processed_date_in_run = None
 
     for row in rows:
-        # Convert the BigQuery Row object to a dictionary.
-        row_dict = dict(row.items())
+        # --- FIX: Explicitly build the dictionary for Firestore ---
+        # This prevents implicit type conversion errors and adds robustness.
 
-        # Ensure sensor_set and date are present to create a robust document ID.
-        sensor_set_id= row_dict.get("sensor_set_id")
-        record_date = row_dict.get("date")
+        record_date = row.get("date")
+        sensor_set_id = row.get("sensor_set_id")
 
         if not sensor_set_id or not record_date:
-            print(f"Skipping row due to missing sensor_set_id or date: {row_dict}")
+            print(f"Skipping row due to missing sensor_set_id or date: {dict(row.items())}")
             continue
 
-        # Convert the datetime.date object from BigQuery into a
-        # datetime.datetime object, which the Firestore client can handle.
-        # We represent the date as a timestamp at the beginning of the day (midnight).
-        if isinstance(record_date, date):
-            row_dict['date'] = datetime.combine(record_date, datetime.min.time())
+        # Manually construct the document to ensure all types are correct.
+        # The BigQuery client correctly returns datetime objects for TIMESTAMP fields.
+        # We pass these directly to Firestore, which knows how to handle them.
+        firestore_doc_data = {
+            # Convert the date field to a timestamp at midnight UTC for consistency.
+            "date": datetime.combine(record_date, time.min),
+            "sunrise": row.get("sunrise"),
+            "sunset": row.get("sunset"),
+            "daylight_duration": row.get("daylight_duration"),
+            "sunshine_duration": row.get("sunshine_duration"),
+            "temperature_2m_max": row.get("temperature_2m_max"),
+            "temperature_2m_min": row.get("temperature_2m_min"),
+            "uv_index_max": row.get("uv_index_max"),
+            "uv_index_clear_sky_max": row.get("uv_index_clear_sky_max"),
+            "rain_sum": row.get("rain_sum"),
+            "showers_sum": row.get("showers_sum"),
+            "precipitation_sum": row.get("precipitation_sum"),
+            "snowfall_sum": row.get("snowfall_sum"),
+            "precipitation_hour": row.get("precipitation_hour"),
+            "data_source": row.get("data_source"),
+            "sensor_set_id": sensor_set_id,
+            "timezone": row.get("timezone"),
+        }
 
+        # Add crucial logging to see exactly what is being sent to Firestore.
+        # This will appear in your Cloud Function logs.
+        print(f"Processing row for {record_date}: Sunrise={firestore_doc_data['sunrise']}, Sunset={firestore_doc_data['sunset']}")
+
+        # Create a unique document ID for Firestore.
         doc_id = f"{sensor_set_id}_{record_date.strftime('%Y-%m-%d')}"
         doc_ref = firestore_client.collection(DESTINATION_COLLECTION).document(doc_id)
 
-        # The entire row, including the new fields, is written to Firestore.
-        batch.set(doc_ref, row_dict)
+        batch.set(doc_ref, firestore_doc_data)
 
         # Keep track of the latest date processed in this run.
-        if max_processed_date is None or record_date > max_processed_date:
-            max_processed_date = record_date
+        if max_processed_date_in_run is None or record_date > max_processed_date_in_run:
+            max_processed_date_in_run = record_date
 
     print(f"Committing batch of {len(rows)} documents to Firestore...")
     batch.commit()
 
     # Update the last processed date in Firestore for the next run
-    if max_processed_date:
-        new_date_str = max_processed_date.strftime('%Y-%m-%d')
+    if max_processed_date_in_run:
+        new_date_str = max_processed_date_in_run.strftime('%Y-%m-%d')
         metadata_ref.set({
             "last_processed_date": new_date_str,
-            "rows_processed_in_last_run": len(rows)
+            "rows_processed_in_last_run": len(rows),
+            "last_run_timestamp": firestore.SERVER_TIMESTAMP
         })
         print(f"Updated last processed date to: {new_date_str}")
 
     return "SUCCESS"
-
