@@ -22,6 +22,7 @@ jobs:
     permissions:
       contents: 'read'
       id-token: 'write'
+      checks: 'write'
 
     runs-on: ubuntu-latest
 
@@ -58,4 +59,4 @@ jobs:
           event_trigger_type: 'providers/cloud.pubsub/eventTypes/topic.publish'
           event_trigger_resource: 'projects/${{ secrets.GCP_PROJECT_ID }}/topics/sun-sensor-ingest-topic'
           event_trigger_retry: 'true'
-          service_account_email: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
+          service_account_email: 'function-runtime@sunlight-sensor.iam.gserviceaccount.com'   # <-- NEW LINE

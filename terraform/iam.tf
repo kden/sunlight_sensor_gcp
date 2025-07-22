@@ -103,6 +103,19 @@ resource "google_service_account_iam_member" "function_deployer_wif_user" {
   depends_on         = [google_iam_workload_identity_pool_provider.github_provider]
 }
 
+# --- Service Account for Cloud Function Runtime ---
+resource "google_service_account" "function_runtime" {
+  project      = var.gcp_project_id
+  account_id   = "function-runtime"
+  display_name = "Cloud Function Runtime Service Account"
+}
+
+# --- Allow Function Deployer SA to act as the Function Runtime SA ---
+resource "google_service_account_iam_member" "function_deployer_act_as_runtime" {
+  service_account_id = google_service_account.function_runtime.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.function_deployer.email}"
+}
 
 # --- Outputs ---
 
