@@ -52,7 +52,7 @@ def sample_data_tables(bq_client, test_dataset):
     source_table_name = "source_raw_data"
     dest_table_name = "dest_downsampled_data"
 
-    # --- FIX: Construct fully-qualified table IDs for all client operations ---
+    # --- Construct fully-qualified table IDs for all client operations ---
     full_source_table_id = f"{GCP_PROJECT_ID}.{test_dataset}.{source_table_name}"
     full_dest_table_id = f"{GCP_PROJECT_ID}.{test_dataset}.{dest_table_name}"
 

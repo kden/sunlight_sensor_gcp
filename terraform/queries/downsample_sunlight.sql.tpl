@@ -1,7 +1,7 @@
 -- terraform/queries/downsample_sunlight.sql.tpl
 --
 -- This query downsamples raw sunlight data to one-minute intervals.
--- It processes data incrementally by finding the last processed minute
+-- It processes data incrementally by finding the last processed minute for each sensor
 -- and selecting the FIRST data point from each subsequent minute.
 --
 -- Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
@@ -11,18 +11,20 @@
 MERGE INTO `${project_id}.${dataset_id}.${destination_table}` AS T
 USING (
   WITH
-    -- Step 1: Find the latest minute we have successfully processed in the destination table.
-    -- This determines the starting point for this incremental run.
-    window_start_ts AS (
+    -- Step 1: Find the latest processed minute for each sensor individually.
+    -- This makes the pipeline resilient, as a single bad sensor won't stall others.
+    last_processed_per_sensor AS (
       SELECT
-        -- If the destination is empty, use a timestamp from 1970 to process all source data.
-        COALESCE(
-          (SELECT MAX(observation_minute) FROM `${project_id}.${dataset_id}.${destination_table}`),
-          TIMESTAMP('1970-01-01 00:00:00 UTC')
-        ) AS start_time
+        sensor_id,
+        MAX(observation_minute) as last_observation
+      FROM `${project_id}.${dataset_id}.${destination_table}`
+      -- This guard is still a best practice to prevent a sensor from stalling itself.
+      WHERE observation_minute < CURRENT_TIMESTAMP()
+      GROUP BY sensor_id
     ),
 
-    -- Step 2: Select the FIRST raw data point for each minute from the source table.
+    -- Step 2: Select the FIRST raw data point for each minute, for each sensor,
+    -- starting from that sensor's specific last processed time.
     new_downsampled_data AS (
       SELECT
         observation_minute,
@@ -40,13 +42,13 @@ USING (
             PARTITION BY raw.sensor_id, TIMESTAMP_TRUNC(raw.timestamp, MINUTE)
             ORDER BY raw.timestamp ASC
           ) as rn
-        FROM
-          `${project_id}.${dataset_id}.${source_table}` AS raw,
-          window_start_ts
+        FROM `${project_id}.${dataset_id}.${source_table}` AS raw
+        LEFT JOIN last_processed_per_sensor lps ON raw.sensor_id = lps.sensor_id
         WHERE
-          -- Use > to select data strictly *after* the last processed minute.
-          -- This prevents the query from getting stuck on the last successful entry.
-          raw.timestamp > window_start_ts.start_time
+          -- Process data for each sensor starting after its own last observation time.
+          -- If the sensor is new (lps.last_observation is NULL), COALESCE provides a default
+          -- start time to process all of its historical data.
+          raw.timestamp > COALESCE(lps.last_observation, TIMESTAMP('1970-01-01 00:00:00 UTC'))
       )
       -- Keep only the very first record for each minute.
       WHERE rn = 1

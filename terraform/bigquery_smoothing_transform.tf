@@ -56,7 +56,7 @@ EOF
 
 resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
   project                = var.gcp_project_id
-  display_name           = "downsample_sunlight_transfer: Incremental Downsample Sunlight Data (LOCF)"
+  display_name           = "downsample_sunlight_transfer: Incremental Downsample Sunlight Data"
   location               = "US"
   data_source_id         = "scheduled_query"
   schedule               = "every 15 minutes"
