@@ -36,15 +36,15 @@ jobs:
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
 
       - name: Deploy Cloud Function
-        id: deploy
         uses: 'google-github-actions/deploy-cloud-functions@v2'
         with:
-          # These values should match your Terraform configuration in monitoring.tf
           name: 'sensor-status-monitor-function'
           runtime: 'python311'
           project_id: '${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}'
-          region: 'us-central1' # Make sure this matches your var.region in Terraform
+          region: 'us-central1'
           source_dir: './functions/sensor_status_monitor/src'
           entry_point: 'process_sensor_status'
-          # This is the correct topic name from your pubsub.tf file
-          trigger_topic: 'sun-sensor-ingest-topic'
+          event_trigger_type: 'providers/cloud.pubsub/eventTypes/topic.publish'
+          event_trigger_resource: 'projects/${{ secrets.GCP_PROJECT_ID }}/topics/sun-sensor-ingest-topic'
+          event_trigger_retry: 'true'
+          service_account_email: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
