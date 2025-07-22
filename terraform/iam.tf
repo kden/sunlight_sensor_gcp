@@ -14,6 +14,8 @@ resource "google_iam_workload_identity_pool" "github_pool" {
   workload_identity_pool_id = "github-pool"
   display_name              = "GitHub Actions Pool"
   description               = "Pool for GitHub Actions CI/CD"
+
+  depends_on = [google_project_service.apis]
 }
 
 # --- Workload Identity Federation Provider ---
@@ -28,13 +30,16 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
   attribute_mapping = {
     "google.subject"             = "assertion.sub"
     "attribute.repository_owner" = "assertion.repository_owner"
+    "attribute.repository"       = "assertion.repository"
   }
 
   oidc {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
   attribute_condition = "assertion.repository_owner=='${var.github_org}'"
+  depends_on = [google_iam_workload_identity_pool.github_pool]
 }
+
 
 # --- Service Account for Web App Deployment ---
 resource "google_service_account" "webapp_deployer" {

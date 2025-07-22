@@ -28,6 +28,7 @@ variable "gcp_service_list" {
     "eventarc.googleapis.com",
     "iamcredentials.googleapis.com",
     "sts.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
   ]
 }
 
