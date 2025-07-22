@@ -10,9 +10,6 @@ on:
     paths:
       # Only run when files in the function's directory change
       - 'functions/sensor_status_monitor/**'
-      # Or the related Terraform files
-      - 'terraform/monitoring.tf'
-      - 'terraform/iam.tf'
       # Also run if this workflow file itself changes
       - '.github/workflows/deploy_sensor_monitor.yml'
 
@@ -30,22 +27,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Debug service account email
-        run: |
-          echo "Using service account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}"
-
       - name: Authenticate to Google Cloud
         id: auth
         uses: 'google-github-actions/auth@v2'
         with:
-          # This uses Workload Identity Federation, the recommended secure method.
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
-          # Use the dedicated service account for function deployments.
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
-          export_environment_variables: true
-
-      - name: Print gcloud identity
-        run: gcloud auth list
 
       - name: Deploy Cloud Function
         uses: 'google-github-actions/deploy-cloud-functions@v2'
@@ -56,7 +43,7 @@ jobs:
           region: 'us-central1'
           source_dir: './functions/sensor_status_monitor/src'
           entry_point: 'process_sensor_status'
-          event_trigger_type: 'providers/cloud.pubsub/eventTypes/topic.publish'
-          event_trigger_resource: 'projects/${{ secrets.GCP_PROJECT_ID }}/topics/sun-sensor-ingest-topic'
-          event_trigger_retry: 'true'
-          service_account_email: 'function-runtime@sunlight-sensor.iam.gserviceaccount.com'   # <-- NEW LINE
+          # FIX: Use the 2nd Gen trigger parameter. This is simpler and aligns
+          # with modern best practices and the IAM model you have configured.
+          event_trigger_topic: 'sun-sensor-ingest-topic'
+          service_account_email: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME }}'
