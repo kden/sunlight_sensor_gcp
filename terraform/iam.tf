@@ -81,6 +81,15 @@ resource "google_service_account_iam_member" "function_deployer_service_account_
   member             = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
+# --- Grant the Function Deployer SA permission to create tokens for itself ---
+# This is required by the deployment API when a runtime service account is specified.
+# This role grants the 'iam.serviceAccounts.getAccessToken' permission.
+resource "google_service_account_iam_member" "function_deployer_token_creator" {
+  service_account_id = google_service_account.function_deployer.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.function_deployer.email}"
+}
+
 # --- Allow GitHub Actions to impersonate the Function Deployer SA ---
 resource "google_service_account_iam_member" "function_deployer_wif_user" {
   service_account_id = google_service_account.function_deployer.name
