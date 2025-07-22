@@ -26,7 +26,7 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
   description                        = "OIDC provider for GitHub Actions"
 
   attribute_mapping = {
-    "google.subject" = "assertion.sub"
+    "google.subject"             = "assertion.sub"
     "attribute.repository_owner" = "assertion.repository_owner"
   }
 
@@ -58,8 +58,6 @@ resource "google_service_account_iam_member" "webapp_deployer_wif_user" {
   depends_on         = [google_iam_workload_identity_pool_provider.github_provider]
 }
 
-
-
 # --- Service Account for Cloud Function Deployment ---
 resource "google_service_account" "function_deployer" {
   project      = var.gcp_project_id
@@ -75,18 +73,19 @@ resource "google_project_iam_member" "function_deployer_functions_developer" {
 }
 
 # --- Allow the Function Deployer SA to act as the runtime service account ---
-# This is required for Cloud Functions (Gen 2) deployments.
-resource "google_project_iam_member" "function_deployer_service_account_user" {
-  project = var.gcp_project_id
-  role    = "roles/iam.serviceAccountUser"
-  member  = "serviceAccount:${google_service_account.function_deployer.email}"
+# This is required for Cloud Functions (Gen 2) deployments. The permission
+# must be granted on the service account resource itself for this API check.
+resource "google_service_account_iam_member" "function_deployer_service_account_user" {
+  service_account_id = google_service_account.function_deployer.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
 # --- Allow GitHub Actions to impersonate the Function Deployer SA ---
 resource "google_service_account_iam_member" "function_deployer_wif_user" {
   service_account_id = google_service_account.function_deployer.name
   role               = "roles/iam.workloadIdentityUser"
-  member = "principalSet://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.subject/repo:${var.github_org}/${var.github_repo}:*"
+  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.subject/repo:${var.github_org}/${var.github_repo}:*"
   depends_on         = [google_iam_workload_identity_pool_provider.github_provider]
 }
 
