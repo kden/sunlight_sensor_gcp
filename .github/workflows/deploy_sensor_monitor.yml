@@ -37,13 +37,15 @@ jobs:
       - name: Deploy Cloud Function
         uses: 'google-github-actions/deploy-cloud-functions@v2'
         with:
+          # --- FIX: Explicitly declare 2nd Gen deployment ---
+          # This forces the action to use the modern v2 API and avoids
+          # the fallback to the legacy 1st Gen deployment process.
+          gen: 2
           name: 'sensor-status-monitor-function'
           runtime: 'python311'
           project_id: '${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}'
           region: 'us-central1'
           source_dir: './functions/sensor_status_monitor/src'
           entry_point: 'process_sensor_status'
-          # FIX: Use the 2nd Gen trigger parameter. This is simpler and aligns
-          # with modern best practices and the IAM model you have configured.
           event_trigger_topic: 'sun-sensor-ingest-topic'
           service_account_email: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME }}'
