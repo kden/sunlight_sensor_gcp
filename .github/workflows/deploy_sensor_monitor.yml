@@ -10,6 +10,9 @@ on:
     paths:
       # Only run when files in the function's directory change
       - 'functions/sensor_status_monitor/**'
+      # Or the related Terraform files
+      - 'terraform/monitoring.tf'
+      - 'terraform/iam.tf'
       # Also run if this workflow file itself changes
       - '.github/workflows/deploy_sensor_monitor.yml'
 
