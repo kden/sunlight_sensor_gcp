@@ -35,6 +35,13 @@ jobs:
           # UPDATED: Use the dedicated service account for function deployments.
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
 
+      - name: Output GitHub OIDC Token Claims
+        shell: bash
+        run: |
+          echo "${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" | cut -d '.' -f2 | base64 -d | jq
+        env:
+          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ steps.auth.outputs.id_token }}
+
       - name: Deploy Cloud Function
         uses: 'google-github-actions/deploy-cloud-functions@v2'
         with:
