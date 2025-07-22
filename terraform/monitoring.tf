@@ -1,7 +1,7 @@
 # terraform/monitoring.tf
 #
-# Defines a Cloud Function and Log-based Alerting to monitor sensor status
-# messages and send email notifications.
+# Defines Log-based Alerting to monitor sensor status messages and send
+# email/SMS notifications. The function itself is deployed via CI/CD.
 #
 # Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
 # Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
@@ -70,9 +70,9 @@ resource "google_logging_metric" "sensor_status_alerts" {
 
   # The extractor to populate the new labels from the log payload
   label_extractors = {
-    "sensor_id" = "EXTRACT(jsonPayload.sensor_id)"
+    "sensor_id"     = "EXTRACT(jsonPayload.sensor_id)"
     "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
-    "status"    = "EXTRACT(jsonPayload.status)"
+    "status"        = "EXTRACT(jsonPayload.status)"
   }
 }
 
@@ -115,50 +115,9 @@ resource "google_monitoring_alert_policy" "status_alert_policy" {
   ]
 }
 
-# --- 4. Package and Define the (now simpler) Cloud Function ---
-data "archive_file" "sensor_status_monitor_source_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/../functions/sensor_status_monitor/src"
-  output_path = "${path.module}/../.tmp/sensor_status_monitor_source.zip"
-}
+# --- REMOVED: The Cloud Function resources are now managed by the GitHub Actions workflow. ---
+# This prevents conflicts and separates infrastructure from application deployment.
 
-resource "google_storage_bucket_object" "status_monitor_source_archive" {
-  name   = "sensor_status_monitor_source.zip#${data.archive_file.sensor_status_monitor_source_zip.output_md5}"
-  bucket = google_storage_bucket.cloudrun_function_source_shared_bucket.name
-  source = data.archive_file.sensor_status_monitor_source_zip.output_path
-}
-
-resource "google_cloudfunctions2_function" "status_monitor_function" {
-  project  = var.gcp_project_id
-  name     = "sensor-status-monitor-function"
-  location = var.region
-
-  build_config {
-    runtime     = "python311"
-    entry_point = "process_sensor_status"
-    source {
-      storage_source {
-        bucket = google_storage_bucket.cloudrun_function_source_shared_bucket.name
-        object = google_storage_bucket_object.status_monitor_source_archive.name
-      }
-    }
-  }
-
-  service_config {
-    max_instance_count = 1
-    available_memory   = "256Mi"
-    timeout_seconds    = 60
-    # No environment variables are needed anymore!
-  }
-
-  # This creates the Pub/Sub subscription and links it to the function.
-  event_trigger {
-    trigger_region = var.region
-    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic   = google_pubsub_topic.sun_sensor_ingest.id
-    retry_policy   = "RETRY_POLICY_RETRY"
-  }
-}
 # --- 5. Create a GENERALIZED Log-based Metric for All Sensor Pings ---
 # This counts "ping" log entries and extracts the sensor_id as a label,
 # creating a separate time series for each sensor automatically.
