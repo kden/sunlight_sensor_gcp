@@ -40,6 +40,7 @@ def process_sensor_status(cloud_event):
         # Ensure the reading is a dictionary before processing
         if isinstance(reading, dict):
             sensor_id = reading.get("sensor_id", "Unknown Sensor")
+            sensor_set_id = reading.get("sensor_set_id", "Unknown Sensor Set")
 
             # Check if this is a status alert or a regular data point (ping)
             if "status" in reading:
@@ -49,9 +50,10 @@ def process_sensor_status(cloud_event):
                     "severity": "ALERT",
                     "message": f"Status update from {sensor_id}: {status_message}",
                     "sensor_id": sensor_id,
+                    "sensor_set_id": sensor_set_id,
                     "status_message": status_message,
-                    # This custom field is what our monitoring will filter for.
-                    "log_name": "sensor_status_alert"
+                    "log_name": "sensor_status_alert",
+                    "data_payload": reading  # Include the original data for context
                 }
                 print(json.dumps(alert_log_entry))
             else:
@@ -60,7 +62,7 @@ def process_sensor_status(cloud_event):
                     "severity": "INFO",
                     "message": f"Data point received from {sensor_id}",
                     "sensor_id": sensor_id,
-                    # This custom field is what our absence alert will filter for.
+                    "sensor_set_id": sensor_set_id,
                     "log_name": "sensor_status_ping",
                     "data_payload": reading # Include the original data for context
                 }

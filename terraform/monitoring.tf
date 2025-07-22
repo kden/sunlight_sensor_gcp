@@ -44,7 +44,7 @@ resource "google_monitoring_notification_channel" "sms_channel" {
 resource "google_logging_metric" "sensor_status_alerts" {
   project = var.gcp_project_id
   name    = "sensor_status_alert_count"
-  filter  = "resource.type=\"cloud_function\" AND resource.labels.function_name=\"sensor-status-monitor-function\" AND jsonPayload.log_name=\"sensor_status_alert\""
+  filter  = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"sensor-status-monitor-function\" AND jsonPayload.log_name=\"sensor_status_alert\""
 
   metric_descriptor {
     metric_kind = "DELTA"
@@ -82,7 +82,7 @@ resource "google_monitoring_alert_policy" "status_alert_policy" {
     display_name = "A sensor has reported a status update"
     condition_threshold {
       # This filter points to the log-based metric we just created.
-      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.sensor_status_alerts.name}\" AND resource.type=\"cloud_function\""
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.sensor_status_alerts.name}\" AND resource.type=\"cloud_run_revision\""
       duration        = "60s"
       comparison      = "COMPARISON_GT"
       threshold_value = 0
@@ -153,7 +153,6 @@ resource "google_cloudfunctions2_function" "status_monitor_function" {
     retry_policy   = "RETRY_POLICY_RETRY"
   }
 }
-
 # --- 5. Create a GENERALIZED Log-based Metric for All Sensor Pings ---
 # This counts "ping" log entries and extracts the sensor_id as a label,
 # creating a separate time series for each sensor automatically.
@@ -161,8 +160,8 @@ resource "google_logging_metric" "sensor_ping_count" {
   project = var.gcp_project_id
   name    = "sensor_ping_count" # A more general name
 
-  # The filter now matches pings from ANY sensor
-  filter = "resource.type=\"cloud_function\" AND resource.labels.function_name=\"sensor-status-monitor-function\" AND jsonPayload.log_name=\"sensor_status_ping\""
+  # The filter now matches pings from ANY sensor, EXCLUDING the 'test' set.
+  filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"sensor-status-monitor-function\" AND jsonPayload.log_name=\"sensor_status_ping\" AND jsonPayload.sensor_set_id != \"test\""
 
   metric_descriptor {
     metric_kind = "DELTA"
@@ -172,14 +171,21 @@ resource "google_logging_metric" "sensor_ping_count" {
       value_type  = "STRING"
       description = "The ID of the sensor sending a ping"
     }
+    # ADD: A label for the sensor set ID.
+    labels {
+      key         = "sensor_set_id"
+      value_type  = "STRING"
+      description = "The set ID of the sensor sending a ping"
+    }
   }
 
-  # This block tells the metric how to populate the "sensor_id" label.
+  # This block tells the metric how to populate the labels.
   label_extractors = {
-    "sensor_id" = "EXTRACT(jsonPayload.sensor_id)"
+    "sensor_id"     = "EXTRACT(jsonPayload.sensor_id)"
+    # ADD: Extract the sensor_set_id as a label.
+    "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
   }
 }
-
 # --- 6. Create a GENERALIZED Alerting Policy for Ping Absence ---
 # This watches all sensor ping streams and triggers if any one of them is
 # absent for 15 minutes.
@@ -193,9 +199,7 @@ resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
     display_name = "A sensor has not sent a data point in 15 minutes"
     # This block defines an "absence" alert.
     condition_absent {
-      # This filter points to our new, generalized log-based metric.
-      # The monitoring service will automatically track each sensor_id time series.
-      filter   = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.sensor_ping_count.name}\" AND resource.type=\"cloud_function\""
+      filter   = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.sensor_ping_count.name}\" AND resource.type=\"cloud_run_revision\" AND metric.label.sensor_set_id != \"test\""
       duration = "900s" # 15 minutes
       trigger {
         count = 1
@@ -210,7 +214,8 @@ resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
   # Add some helpful information to the alert email body.
   # We can use a variable to dynamically insert the ID of the sensor that triggered the alert.
   documentation {
-    content = "No data points (pings) have been received from sensor $${metric.label.sensor_id} for over 15 minutes. The sensor may be offline or having connectivity issues."
+    # Include the sensor_set_id in the alert message for more context.
+    content = "No data points (pings) have been received from sensor $${metric.label.sensor_id} (Set: $${metric.label.sensor_set_id}) for over 15 minutes. The sensor may be offline or having connectivity issues."
   }
 
   # Link the policy to our existing email notification channel.
