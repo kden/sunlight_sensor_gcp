@@ -55,6 +55,11 @@ resource "google_logging_metric" "sensor_status_alerts" {
       value_type  = "STRING"
       description = "The ID of the sensor sending a status alert"
     }
+    labels {
+      key         = "sensor_set_id"
+      value_type  = "STRING"
+      description = "The ID of the sensor set sending a status alert"
+    }
     # A label to hold the actual status message
     labels {
       key         = "status" # Renamed for consistency
@@ -66,7 +71,8 @@ resource "google_logging_metric" "sensor_status_alerts" {
   # The extractor to populate the new labels from the log payload
   label_extractors = {
     "sensor_id" = "EXTRACT(jsonPayload.sensor_id)"
-    "status"    = "EXTRACT(jsonPayload.status)" # Corrected to use the 'status' field
+    "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
+    "status"    = "EXTRACT(jsonPayload.status)"
   }
 }
 
@@ -158,9 +164,9 @@ resource "google_cloudfunctions2_function" "status_monitor_function" {
 # creating a separate time series for each sensor automatically.
 resource "google_logging_metric" "sensor_ping_count" {
   project = var.gcp_project_id
-  name    = "sensor_ping_count" # A more general name
+  name    = "sensor_ping_count"
 
-  # The filter now matches pings from ANY sensor, EXCLUDING the 'test' set.
+  # The filter now pings from ANY sensor, EXCLUDING the 'test' set.
   filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"sensor-status-monitor-function\" AND jsonPayload.log_name=\"sensor_status_ping\" AND jsonPayload.sensor_set_id != \"test\""
 
   metric_descriptor {
@@ -171,7 +177,7 @@ resource "google_logging_metric" "sensor_ping_count" {
       value_type  = "STRING"
       description = "The ID of the sensor sending a ping"
     }
-    # ADD: A label for the sensor set ID.
+    # A label for the sensor set ID.
     labels {
       key         = "sensor_set_id"
       value_type  = "STRING"
@@ -182,7 +188,6 @@ resource "google_logging_metric" "sensor_ping_count" {
   # This block tells the metric how to populate the labels.
   label_extractors = {
     "sensor_id"     = "EXTRACT(jsonPayload.sensor_id)"
-    # ADD: Extract the sensor_set_id as a label.
     "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
   }
 }
