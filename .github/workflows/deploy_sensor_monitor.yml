@@ -30,9 +30,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Debug service account email
-        run:
+        run: |
           echo "Using service account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}"
-
 
       - name: Authenticate to Google Cloud
         id: auth
