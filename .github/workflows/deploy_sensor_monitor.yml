@@ -1,0 +1,50 @@
+# .github/workflows/deploy_sensor_monitor.yml
+
+name: Deploy Sensor Status Monitor Function
+
+on:
+  # Trigger the workflow on push events to the main branch
+  push:
+    branches:
+      - main
+    paths:
+      # Only run when files in the function's directory change
+      - 'functions/sensor_status_monitor/**'
+      # Also run if this workflow file itself changes
+      - '.github/workflows/deploy_sensor_monitor.yml'
+
+jobs:
+  deploy:
+    # These permissions are required for secure OIDC authentication with Google Cloud
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          # This uses Workload Identity Federation, the recommended secure method.
+          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+          # UPDATED: Use the dedicated service account for function deployments.
+          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
+
+      - name: Deploy Cloud Function
+        id: deploy
+        uses: 'google-github-actions/deploy-cloud-functions@v2'
+        with:
+          # These values should match your Terraform configuration in monitoring.tf
+          name: 'sensor-status-monitor-function'
+          runtime: 'python311'
+          project_id: '${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}'
+          region: 'us-central1' # Make sure this matches your var.region in Terraform
+          source_dir: './functions/sensor_status_monitor/src'
+          entry_point: 'process_sensor_status'
+          # This is the correct topic name from your pubsub.tf file
+          trigger_topic: 'sun-sensor-ingest-topic'

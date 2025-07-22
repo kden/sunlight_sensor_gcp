@@ -13,11 +13,6 @@ resource "google_project_iam_member" "pubsub_bigquery_publisher" {
   member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
 
-# Get the project details
-data "google_project" "project" {
-  project_id = var.gcp_project_id
-}
-
 resource "google_bigquery_dataset" "sunlight_dataset" {
   project    = var.gcp_project_id
   dataset_id = var.dataset_id

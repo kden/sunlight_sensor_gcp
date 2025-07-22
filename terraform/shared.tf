@@ -6,6 +6,16 @@ variable "gcp_project_id" {
   description = "The Google Cloud project ID to deploy resources into."
 }
 
+variable "github_org" {
+  type        = string
+  description = "Your GitHub organization or username."
+}
+
+variable "github_repo" {
+  type        = string
+  description = "The name of your GitHub repository."
+}
+
 variable "dataset_id" {
   type        = string
   description = "The BigQuery dataset ID to store data in."
@@ -48,4 +58,9 @@ locals {
       ])
     }
   }
+}
+
+# --- Data source to get the current project's number ---
+data "google_project" "project" {
+  project_id = var.gcp_project_id
 }

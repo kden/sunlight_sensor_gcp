@@ -26,6 +26,8 @@ variable "gcp_service_list" {
     "firebasehosting.googleapis.com",
     "cloudscheduler.googleapis.com",
     "eventarc.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "sts.googleapis.com",
   ]
 }
 
