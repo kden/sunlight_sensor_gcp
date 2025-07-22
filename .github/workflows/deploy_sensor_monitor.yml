@@ -29,6 +29,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Debug service account email
+        run:
+          echo "Using service account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}"
+
+
       - name: Authenticate to Google Cloud
         id: auth
         uses: 'google-github-actions/auth@v2'
@@ -37,6 +42,9 @@ jobs:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           # Use the dedicated service account for function deployments.
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
+
+      - name: Print gcloud identity
+        run: gcloud auth list
 
       - name: Deploy Cloud Function
         uses: 'google-github-actions/deploy-cloud-functions@v2'
