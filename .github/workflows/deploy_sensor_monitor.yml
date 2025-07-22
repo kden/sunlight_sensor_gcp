@@ -41,6 +41,7 @@ jobs:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           # Use the dedicated service account for function deployments.
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
+          export_environment_variables: true
 
       - name: Print gcloud identity
         run: gcloud auth list
