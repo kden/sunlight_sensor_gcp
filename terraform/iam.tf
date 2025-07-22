@@ -37,7 +37,7 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
     issuer_uri = "https://token.actions.githubusercontent.com"
   }
   attribute_condition = "assertion.repository_owner=='${var.github_org}'"
-  depends_on = [google_iam_workload_identity_pool.github_pool]
+  depends_on          = [google_iam_workload_identity_pool.github_pool]
 }
 
 
@@ -77,23 +77,9 @@ resource "google_project_iam_member" "function_deployer_functions_developer" {
   member  = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
-# --- Allow the Function Deployer SA to act as the runtime service account ---
-# This is required for Cloud Functions (Gen 2) deployments. The permission
-# must be granted on the service account resource itself for this API check.
-resource "google_service_account_iam_member" "function_deployer_service_account_user" {
-  service_account_id = google_service_account.function_deployer.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.function_deployer.email}"
-}
-
-# --- Grant the Function Deployer SA permission to create tokens for itself ---
-# This is required by the deployment API when a runtime service account is specified.
-# This role grants the 'iam.serviceAccounts.getAccessToken' permission.
-resource "google_service_account_iam_member" "function_deployer_token_creator" {
-  service_account_id = google_service_account.function_deployer.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:${google_service_account.function_deployer.email}"
-}
+# --- REMOVED: Redundant self-granted permissions ---
+# The function_deployer SA no longer needs to act as itself or create its own
+# tokens, as it now uses a separate runtime service account.
 
 # --- Allow GitHub Actions to impersonate the Function Deployer SA ---
 resource "google_service_account_iam_member" "function_deployer_wif_user" {
