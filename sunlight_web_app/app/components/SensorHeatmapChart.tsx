@@ -37,6 +37,7 @@ const CustomTooltip = ({ active, payload }: TooltipProps<ValueType, NameType>) =
         const data = payload[0].payload as ChartDataPoint;
         return (
             <div className="bg-gray-800 text-white p-2 border border-gray-600 rounded">
+                <p>{`Sensor ID: ${data.sensor_id}`}</p>
                 <p>{`Position: (${data.y}, ${data.x})`}</p>
                 <p>{`Intensity: ${data.z ?? 'N/A'}`}</p>
             </div>
@@ -75,21 +76,21 @@ const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yard
             <ResponsiveContainer width="100%" height="100%">
             <ScatterChart margin={{ top: 20, right: 20, bottom: 40, left: 40 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
-                <XAxis 
-                    type="number" 
-                    dataKey="x" 
-                    name="Yard Length" 
-                    domain={[0, yardLength]} 
+                <XAxis
+                    type="number"
+                    dataKey="x"
+                    name="Yard Length"
+                    domain={[0, yardLength]}
                     ticks={[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 133].filter(t => t <= yardLength)}
                 >
                     <Label value="Yard Length (feet)" offset={-30} position="insideBottom" />
                 </XAxis>
-                <YAxis 
-                    type="number" 
-                    dataKey="y" 
-                    name="Yard Width" 
-                    domain={[0, yardWidth]} 
-                    reversed={true} 
+                <YAxis
+                    type="number"
+                    dataKey="y"
+                    name="Yard Width"
+                    domain={[0, yardWidth]}
+                    reversed={true}
                     ticks={[0, 10, 20, 33].filter(t => t <= yardWidth)}
                 >
                     <Label value="Yard Width (feet)" angle={-90} offset={-25} position="insideLeft" />

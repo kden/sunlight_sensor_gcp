@@ -13,4 +13,5 @@ export interface ChartDataPoint {
     x: number;
     y: number;
     z: number | undefined; // Light Intensity
+    sensor_id: string;     // The unique identifier for the sensor
 }

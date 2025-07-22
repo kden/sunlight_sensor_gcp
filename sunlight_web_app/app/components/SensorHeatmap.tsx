@@ -20,13 +20,7 @@ import Toolbar from './Toolbar';
 import StatusDisplay from './StatusDisplay';
 import SensorHeatmapChart from './SensorHeatmapChart';
 import WeatherDataTable from './WeatherDataTable';
-
-// --- Interfaces and Constants ---
-interface ChartDataPoint {
-    x: number;
-    y: number;
-    z: number | undefined; // Light Intensity
-}
+import { ChartDataPoint } from "@/app/types/ChartDataPoint";
 
 const YARD_LENGTH = 133;
 const YARD_WIDTH = 33;
@@ -94,10 +88,11 @@ const SensorHeatmap = () => {
     }
     const currentTimestamp = timestamps[currentTimeIndex];
     const currentReadings = readings[currentTimestamp] || {};
-    const newChartData = sensorMetadata.map(sensor => ({
-        x: sensor.position_y_ft,
+    const newChartData: ChartDataPoint[] = sensorMetadata.map(sensor => ({
+        x: sensor.position_y_ft,  // x and y are intentionally reversed because the view of the yard is rotated
         y: sensor.position_x_ft,
-        z: currentReadings[sensor.id]
+        z: currentReadings[sensor.id],
+        sensor_id: sensor.id,
     }));
     setChartData(newChartData);
   }, [currentTimeIndex, readings, sensorMetadata, timestamps]);
