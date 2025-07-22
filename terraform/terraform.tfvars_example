@@ -9,14 +9,25 @@ dataset_id = "sunlight_data"
 # Region for deployment
 region = "us-central1"
 
+# Web app domain name
 sunlight_app_domain_name = "sunlight.example.com"
+
+# API for sensors to send data
 sensor_target_api_domain_name = "sensors.example.com"
 
+# Secret bearer token for API authentication from sensors
 secret_bearer_token = "my-secret-token"
 
+# Initial configuration for sensors
 sensor_metadata_filename = "sensor_metadata.json"
-
 sensor_set_metadata_filename = "sensor_set_metadata.json"
 
+# Monitoring and alerting configuration
 alert_email_address = "lucy@example.com"
 alert_phone_number = "+1234567890"
+
+# GitHub repository account or organization
+github_org = "kden"
+
+# GitHub repository name
+github_repo = "sunlight_sensor_gcp"
