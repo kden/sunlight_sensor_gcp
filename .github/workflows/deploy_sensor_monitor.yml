@@ -32,7 +32,7 @@ jobs:
         with:
           # This uses Workload Identity Federation, the recommended secure method.
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
-          # UPDATED: Use the dedicated service account for function deployments.
+          # Use the dedicated service account for function deployments.
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
 
       - name: Output GitHub OIDC Token Claims

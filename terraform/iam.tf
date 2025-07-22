@@ -54,7 +54,7 @@ resource "google_project_iam_member" "webapp_deployer_firebase_admin" {
 resource "google_service_account_iam_member" "webapp_deployer_wif_user" {
   service_account_id = google_service_account.webapp_deployer.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.subject/repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main"
+  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.subject/repo:${var.github_org}/${var.github_repo}:*"
   depends_on         = [google_iam_workload_identity_pool_provider.github_provider]
 }
 
@@ -86,7 +86,7 @@ resource "google_project_iam_member" "function_deployer_service_account_user" {
 resource "google_service_account_iam_member" "function_deployer_wif_user" {
   service_account_id = google_service_account.function_deployer.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.subject/repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main"
+  member = "principalSet://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.subject/repo:${var.github_org}/${var.github_repo}:*"
   depends_on         = [google_iam_workload_identity_pool_provider.github_provider]
 }
 
