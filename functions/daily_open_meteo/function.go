@@ -77,6 +77,7 @@ type WeatherRecord struct {
 	Timezone           string    `bigquery:"timezone"`
 	Latitude           float64   `bigquery:"latitude"`
 	Longitude          float64   `bigquery:"longitude"`
+    LastUpdated        time.Time `bigquery:"last_updated"`
 }
 
 // DailyWeatherer is the entry point for the Cloud Function.
@@ -236,7 +237,8 @@ func insertWeatherData(ctx context.Context, client *bigquery.Client, projectID, 
 					@sensor_set_id as sensor_set_id,
 					@timezone as timezone,
 					@latitude as latitude,
-					@longitude as longitude
+					@longitude as longitude,
+					@last_updated as last_updated
 			) S
 			ON T.date = S.date AND T.sensor_set_id = S.sensor_set_id
 			WHEN MATCHED THEN
@@ -257,10 +259,11 @@ func insertWeatherData(ctx context.Context, client *bigquery.Client, projectID, 
 					data_source = S.data_source,
 					timezone = S.timezone,
 					latitude = S.latitude,
-					longitude = S.longitude
+					longitude = S.longitude,
+					last_updated = S.last_updated
 			WHEN NOT MATCHED THEN
-				INSERT (date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hour, data_source, sensor_set_id, timezone, latitude, longitude)
-				VALUES(date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hour, data_source, sensor_set_id, timezone, latitude, longitude)
+				INSERT (date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hour, data_source, sensor_set_id, timezone, latitude, longitude, last_updated)
+				VALUES(date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hour, data_source, sensor_set_id, timezone, latitude, longitude, last_updated)
 		`, projectID))
 
 		q.Parameters = []bigquery.QueryParameter{
@@ -283,6 +286,7 @@ func insertWeatherData(ctx context.Context, client *bigquery.Client, projectID, 
 			{Name: "timezone", Value: sensorSetData.Timezone},
 			{Name: "latitude", Value: sensorSetData.Latitude},
 			{Name: "longitude", Value: sensorSetData.Longitude},
+			{Name: "last_updated", Value: time.Now().UTC()},
 		}
 
 		job, err := q.Run(ctx)

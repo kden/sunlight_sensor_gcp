@@ -131,6 +131,12 @@ resource "google_bigquery_table" "daily_historical_weather" {
     "type": "STRING",
     "mode": "NULLABLE",
     "description": "The source of the weather data."
+  },
+  {
+    "name": "last_updated",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "The UTC timestamp when the record was last inserted or updated."
   }
 ]
 EOF

@@ -47,7 +47,7 @@ resource "google_cloud_scheduler_job" "bq_to_fs_weather_scheduler" {
   region      = var.region
   name        = "bq-to-fs-weather-job"
   schedule    = "0 2 * * *"
-  time_zone   = "UTC"
+  time_zone   = "America/Chicago"
   description = "Transfers daily historical weather data from BigQuery to Firestore."
 
   pubsub_target {

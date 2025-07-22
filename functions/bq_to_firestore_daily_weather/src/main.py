@@ -70,7 +70,7 @@ def export_weather_to_firestore(event, context):
     max_processed_date_in_run = None
 
     for row in rows:
-        # --- FIX: Explicitly build the dictionary for Firestore ---
+        # --- Explicitly build the dictionary for Firestore ---
         # This prevents implicit type conversion errors and adds robustness.
 
         record_date = row.get("date")
