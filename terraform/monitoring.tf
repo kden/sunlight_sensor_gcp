@@ -102,10 +102,30 @@ resource "google_monitoring_alert_policy" "status_alert_policy" {
     }
   }
 
-  # Add some helpful information to the alert email body.
   documentation {
-    # Make the content dynamic and escape the variable for Terraform
-    content = "Sensor $${metric.label.sensor_id} reported status: '$${metric.label.status}'" # Corrected to use the 'status' label
+    # Use Markdown for rich formatting in emails.
+    mime_type = "text/markdown"
+
+    # This subject is used for the email subject and the body of SMS messages.
+    subject = "SENSOR ALERT: Sensor $${metric.label.sensor_id} reports: $${metric.label.status}"
+
+    # HEREDOC for a clean, multi-line Markdown message body.
+    # Note: $${...} is used to escape the variables for Terraform, so Google Cloud can substitute them.
+    content = <<-EOT
+      ## 🚨 Sensor Status Alert
+
+      A sensor has reported a new status.
+
+      **Details:**
+      - **Project ID:** `$${project.id}`
+      - **Sensor ID:** `$${metric.label.sensor_id}`
+      - **Sensor Set:** `$${metric.label.sensor_set_id}`
+      - **Reported Status:** `$${metric.label.status}`
+
+      **Next Steps:**
+      - View Logs for this Sensor
+      - View Alert Policy
+    EOT
   }
 
   # Link the policy to our notification channels.
@@ -115,10 +135,7 @@ resource "google_monitoring_alert_policy" "status_alert_policy" {
   ]
 }
 
-# --- REMOVED: The Cloud Function resources are now managed by the GitHub Actions workflow. ---
-# This prevents conflicts and separates infrastructure from application deployment.
-
-# --- 5. Create a GENERALIZED Log-based Metric for All Sensor Pings ---
+# --- 5. Create a generalized Log-based Metric for All Sensor Pings ---
 # This counts "ping" log entries and extracts the sensor_id as a label,
 # creating a separate time series for each sensor automatically.
 resource "google_logging_metric" "sensor_ping_count" {
@@ -150,7 +167,7 @@ resource "google_logging_metric" "sensor_ping_count" {
     "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
   }
 }
-# --- 6. Create a GENERALIZED Alerting Policy for Ping Absence ---
+# --- 6. Create a generalized Alerting Policy for Ping Absence ---
 # This watches all sensor ping streams and triggers if any one of them is
 # absent for 15 minutes.
 resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
@@ -175,11 +192,30 @@ resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
     }
   }
 
-  # Add some helpful information to the alert email body.
-  # We can use a variable to dynamically insert the ID of the sensor that triggered the alert.
+  # Use a structured documentation block for rich, actionable notifications.
   documentation {
-    # Include the sensor_set_id in the alert message for more context.
-    content = "No data points (pings) have been received from sensor $${metric.label.sensor_id} (Set: $${metric.label.sensor_set_id}) for over 15 minutes. The sensor may be offline or having connectivity issues."
+    # Use Markdown for rich formatting in emails.
+    mime_type = "text/markdown"
+
+    # This subject is used for the email subject and the body of SMS messages.
+    subject = "SENSOR OFFLINE: Sensor $${metric.label.sensor_id} has stopped sending pings."
+
+    # Use a HEREDOC for a clean, multi-line Markdown message body.
+    content = <<-EOT
+      ## 🔕 Sensor Ping Absence Alert
+
+      A sensor has not sent a ping for over 15 minutes and may be offline.
+
+      **Details:**
+      - **Project ID:** `$${project.id}`
+      - **Sensor ID:** `$${metric.label.sensor_id}`
+      - **Sensor Set:** `$${metric.label.sensor_set_id}`
+      - **Last Seen:** More than 15 minutes ago.
+
+      **Next Steps:**
+      - View Pings for this Sensor
+      - View Alert Policy
+    EOT
   }
 
   # Link the policy to our existing email notification channel.
