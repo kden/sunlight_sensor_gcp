@@ -47,7 +47,7 @@ resource "google_cloud_scheduler_job" "bq_to_firestore_sensors_scheduler" {
   project   = var.gcp_project_id
   region    = var.region
   name      = "bq-to-firebase-job"
-  schedule  = "* * * * *" # Runs every minute
+  schedule  = "*/15 * * * *" # Runs every minute
   time_zone = "UTC"
   description = "Transfers sensor data from BigQuery to Firebase."
 
