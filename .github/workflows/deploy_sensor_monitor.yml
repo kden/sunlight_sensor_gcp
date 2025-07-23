@@ -39,14 +39,17 @@ jobs:
         with:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
+          token_format: 'access_token'
 
-      - name: Output GitHub OIDC Token Claims
-        shell: bash
-        run: |
-          echo "${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" | cut -d '.' -f2 | base64 -d | jq
-        continue-on-error: true
-        env:
-          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ steps.auth.outputs.id_token }}
+# For debugging OIDC Tokens
+#
+#      - name: Output GitHub OIDC Token Claims
+#        shell: bash
+#        run: |
+#          echo "${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" | cut -d '.' -f2 | base64 -d | jq
+#        continue-on-error: true
+#        env:
+#          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ steps.auth.outputs.id_token }}
 
       - name: Print gcloud identity
         run: gcloud auth list
