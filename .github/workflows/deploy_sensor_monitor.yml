@@ -70,5 +70,5 @@ jobs:
             --source=./functions/sensor_status_monitor/src \
             --entry-point=process_sensor_status \
             --trigger-topic=sun-sensor-ingest-topic \
-            --service-account=$RUNTIME_SERVICE_ACCOUNT
+            --service-account=function-runtime@sunlight-sensor.iam.gserviceaccount.com
 
