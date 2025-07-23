@@ -35,14 +35,6 @@ resource "google_service_account_iam_member" "webapp_deployer_wif_user" {
   depends_on         = [google_iam_workload_identity_pool_provider.github_provider]
 }
 
-# --- Allow GitHub Actions to generate access tokens for the webapp SA ---
-resource "google_service_account_iam_member" "webapp_deployer_token_creator" {
-  service_account_id = google_service_account.webapp_deployer.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.repository/${var.github_org}/${var.github_repo}"
-  depends_on         = [google_iam_workload_identity_pool_provider.github_provider]
-}
-
 # --- Output ---
 output "webapp_deployer_email" {
   value       = google_service_account.webapp_deployer.email

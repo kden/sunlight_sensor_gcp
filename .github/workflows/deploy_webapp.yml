@@ -32,13 +32,6 @@ jobs:
         with:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_WEBAPP }}'
-          token_format: 'access_token'
-          access_token_scopes: |-
-            email
-            openid
-            https://www.googleapis.com/auth/cloudplatformprojects.readonly
-            https://www.googleapis.com/auth/firebase
-            https://www.googleapis.com/auth/cloud-platform
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -85,7 +78,7 @@ jobs:
       # --- Deploy using the Firebase CLI directly ---
       - name: Deploy to Firebase Hosting
         env:
-          FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
         run: |
           npx firebase-tools deploy --only hosting --project "${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}" --non-interactive
         working-directory: ./sunlight_web_app
