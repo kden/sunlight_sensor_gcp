@@ -27,12 +27,44 @@ resource "google_service_account_iam_member" "function_deployer_act_as_runtime" 
   member             = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
+resource "google_project_iam_member" "function_deployer_iam_viewer" {
+  project = var.gcp_project_id
+  role    = "roles/iam.serviceAccountViewer"
+  member  = "serviceAccount:${google_service_account.function_deployer.email}"
+}
+
 # --- Allow GitHub Actions to impersonate the Function Deployer SA ---
 resource "google_service_account_iam_member" "function_deployer_wif_user" {
   service_account_id = google_service_account.function_deployer.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.repository/${var.github_org}/${var.github_repo}"
   depends_on         = [google_iam_workload_identity_pool_provider.github_provider]
+}
+
+# Additional permissions for Gen2 Cloud Functions deployment
+resource "google_project_iam_member" "function_deployer_run_developer" {
+  project = var.gcp_project_id
+  role    = "roles/run.developer"
+  member  = "serviceAccount:${google_service_account.function_deployer.email}"
+}
+
+resource "google_project_iam_member" "function_deployer_eventarc_admin" {
+  project = var.gcp_project_id
+  role    = "roles/eventarc.admin"
+  member  = "serviceAccount:${google_service_account.function_deployer.email}"
+}
+
+resource "google_project_iam_member" "function_deployer_storage_admin" {
+  project = var.gcp_project_id
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:${google_service_account.function_deployer.email}"
+}
+
+
+resource "google_project_iam_member" "function_deployer_pubsub_admin" {
+  project = var.gcp_project_id
+  role    = "roles/pubsub.admin"
+  member  = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
 # --- Service Account for Cloud Function Runtime ---
