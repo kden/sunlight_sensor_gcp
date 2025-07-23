@@ -26,23 +26,18 @@ jobs:
 
       # --- Authenticate to Google Cloud using Workload Identity Federation ---
       - name: Authenticate to Google Cloud
-        id: auth
+        id: auth # Give this step an ID to reference its outputs
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_WEBAPP }}'
-          # FIX: Provide all the scopes required by the firebase-tools CLI.
-          # This ensures the generated credentials have enough permission
-          # for the firebase deploy command to succeed.
+          # Generate a short-lived access token with all the scopes Firebase needs.
           access_token_scopes: |-
             email
             openid
             https://www.googleapis.com/auth/cloudplatformprojects.readonly
             https://www.googleapis.com/auth/firebase
             https://www.googleapis.com/auth/cloud-platform
-          # Create a credentials file for the firebase-tools CLI to use
-          create_credentials_file: true
-          export_environment_variables: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -88,8 +83,8 @@ jobs:
 
       # --- Deploy using the Firebase CLI directly ---
       - name: Deploy to Firebase Hosting
+        env:
+          FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
         run: |
-          # The firebase-tools CLI will automatically use the credentials
-          # configured by the 'google-github-actions/auth' step.
           npx firebase-tools deploy --only hosting --project "${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}" --non-interactive
         working-directory: ./sunlight_web_app
