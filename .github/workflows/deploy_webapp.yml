@@ -1,5 +1,4 @@
 # .github/workflows/deploy_webapp.yml
-# Force deploy comment
 
 name: Deploy Sunlight Web App
 
@@ -81,8 +80,9 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          # The 'firebaseServiceAccount' key is no longer needed and has been removed.
-          # The action automatically uses the credentials from the 'auth' step.
+          # FIX: This input is still required. Provide the email of the
+          # service account authenticated in the 'auth' step.
+          firebaseServiceAccount: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_WEBAPP }}'
           channelId: live
           projectId: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
           entryPoint: ./sunlight_web_app
