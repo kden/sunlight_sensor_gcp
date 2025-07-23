@@ -39,7 +39,8 @@ jobs:
         with:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
-          token_format: 'json'
+          token_format: 'access_token'
+          export_default_credentials: true
 
 # For debugging OIDC Tokens
 #
@@ -52,8 +53,6 @@ jobs:
 #          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ steps.auth.outputs.id_token }}
 
       - name: Print gcloud identity
-        env:
-          CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
         run: gcloud auth list
 
       - name: 'Set up Cloud SDK'
@@ -66,7 +65,6 @@ jobs:
 
       - name: 'Deploy Gen2 Cloud Function'
         env:
-          CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
           RUNTIME_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME }}
         run: |
           gcloud functions deploy sensor-status-monitor-function \
