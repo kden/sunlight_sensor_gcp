@@ -80,9 +80,6 @@ jobs:
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          # FIX: This input is still required. Provide the email of the
-          # service account authenticated in the 'auth' step.
-          firebaseServiceAccount: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_WEBAPP }}'
           channelId: live
           projectId: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
           entryPoint: ./sunlight_web_app
