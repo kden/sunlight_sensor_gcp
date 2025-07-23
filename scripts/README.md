@@ -1,3 +1,7 @@
+# Data Utility Scripts
+
+These scripts can be used to backup and restore the important BigQuery tables to backup tables, and to generate test data.
+
 # How to Use These Scripts
 
 ## Setup
