@@ -67,13 +67,6 @@ resource "google_project_iam_member" "function_deployer_storage_admin" {
   member  = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
-
-resource "google_project_iam_member" "function_deployer_pubsub_admin" {
-  project = var.gcp_project_id
-  role    = "roles/pubsub.admin"
-  member  = "serviceAccount:${google_service_account.function_deployer.email}"
-}
-
 # --- Service Account for Cloud Function Runtime ---
 resource "google_service_account" "function_runtime" {
   project      = var.gcp_project_id
