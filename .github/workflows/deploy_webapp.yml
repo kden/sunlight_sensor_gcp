@@ -26,19 +26,12 @@ jobs:
 
       # --- Authenticate to Google Cloud using Workload Identity Federation ---
       - name: Authenticate to Google Cloud and get access token
-        id: auth
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_WEBAPP }}'
-          # FIX: Request an access token with the scopes required by Firebase.
-          # This provides a direct, reliable authentication method for the next step.
-          access_token_scopes: |-
-            email
-            openid
-            https://www.googleapis.com/auth/cloudplatformprojects.readonly
-            https://www.googleapis.com/auth/firebase
-            https://www.googleapis.com/auth/cloud-platform
+          create_credentials_file: true
+
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -88,6 +81,6 @@ jobs:
       - name: Deploy to Firebase Hosting
         run: |
           cd sunlight_web_app
-          firebase deploy --only hosting --project $PROJECT_ID --token "$(gcloud auth print-access-token)"
+          firebase deploy --only hosting --project "$PROJECT_ID"
         env:
           PROJECT_ID: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
