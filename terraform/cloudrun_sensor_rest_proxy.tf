@@ -109,7 +109,7 @@ output "dns_records_for_domain_mapping" {
   description = "The DNS records you need to add to your domain registrar to verify ownership and point the domain to Cloud Run."
 }
 
-output "function_default_url" {
+output "sensor_rest_proxy_function_default_url" {
   value       = google_cloudfunctions2_function.proxy_function.service_config[0].uri
   description = "The default URL of the deployed Cloud Function."
 }
