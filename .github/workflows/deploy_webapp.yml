@@ -25,20 +25,24 @@ jobs:
         uses: actions/checkout@v4
 
       # --- Authenticate to Google Cloud using Workload Identity Federation ---
-      - name: Authenticate to Google Cloud and get access token
-        id: auth # Give this step an ID to reference its outputs
+      - name: Authenticate to Google Cloud
+        id: auth
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_WEBAPP }}'
-          # FIX: Provide a direct access token with all the scopes required by
-          # the firebase-tools CLI. This is the most reliable authentication method.
+          # FIX: Provide all the scopes required by the firebase-tools CLI.
+          # This ensures the generated credentials have enough permission
+          # for the firebase deploy command to succeed.
           access_token_scopes: |-
             email
             openid
             https://www.googleapis.com/auth/cloudplatformprojects.readonly
             https://www.googleapis.com/auth/firebase
             https://www.googleapis.com/auth/cloud-platform
+          # Create a credentials file for the firebase-tools CLI to use
+          create_credentials_file: true
+          export_environment_variables: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -82,13 +86,10 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ steps.set_firebase_env.outputs.appId }}
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ steps.set_firebase_env.outputs.measurementId }}
 
-      # --- Deploy using the dedicated Firebase action ---
+      # --- Deploy using the Firebase CLI directly ---
       - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          # Use the access token from the 'auth' step for direct, reliable authentication.
-          token: '${{ steps.auth.outputs.access_token }}'
-          channelId: live
-          projectId: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
-          entryPoint: ./sunlight_web_app
+        run: |
+          # The firebase-tools CLI will automatically use the credentials
+          # configured by the 'google-github-actions/auth' step.
+          npx firebase-tools deploy --only hosting --project "${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}" --non-interactive
+        working-directory: ./sunlight_web_app
