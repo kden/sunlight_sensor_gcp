@@ -60,8 +60,6 @@ jobs:
         run: 'gcloud info'
 
       - name: 'Deploy Gen2 Cloud Function'
-        env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           gcloud functions deploy sensor-status-monitor-function \
             --gen2 \
@@ -69,5 +67,5 @@ jobs:
             --runtime=python311 \
             --source=./functions/sensor_status_monitor/src \
             --entry-point=process_sensor_status \
-            --trigger-topic=projects/$GCP_PROJECT_ID/topics/sun-sensor-ingest-topic
+            --trigger-topic=sun-sensor-ingest-topic
 
