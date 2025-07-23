@@ -1,5 +1,4 @@
 # .github/workflows/deploy_webapp.yml
-# Force deploy comment
 
 name: Deploy Sunlight Web App
 
