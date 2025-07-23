@@ -52,6 +52,21 @@ jobs:
 #        env:
 #          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ steps.auth.outputs.id_token }}
 
+
+      - name: 'Debug authentication and service accounts'
+        run: |
+          echo "=== Current gcloud configuration ==="
+          gcloud config list
+          echo "=== Current authenticated account ==="
+          gcloud auth list --format="value(account)"
+          echo "=== Available service accounts in project ==="
+          gcloud iam service-accounts list
+          echo "=== Testing if runtime service account exists ==="
+          gcloud iam service-accounts describe ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME }} || echo "Runtime SA not found"
+          echo "=== Project number ==="
+          gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)"
+
+
       - name: 'Print gcloud identity'
         run: 'gcloud auth list'
         env:
@@ -77,5 +92,6 @@ jobs:
             --source=./functions/sensor_status_monitor/src \
             --entry-point=process_sensor_status \
             --trigger-topic=sun-sensor-ingest-topic \
-            --service-account=function-runtime@sunlight-sensor.iam.gserviceaccount.com
-
+            --service-account=$RUNTIME_SERVICE_ACCOUNT \
+            --verbosity=debug
+          
