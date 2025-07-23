@@ -89,6 +89,16 @@ resource "google_project_iam_member" "function_runtime_pubsub" {
   member  = "serviceAccount:${google_service_account.function_runtime.email}"
 }
 
+# Eventarc forwards Pub/Sub messages to trigger the Cloud Run-based function.
+resource "google_cloud_run_service_iam_member" "eventarc_pubsub_invoker" {
+  location = "us-central1"
+  project  = var.gcp_project_id
+  service  = "sensor-status-monitor-function"
+
+  role   = "roles/run.invoker"
+  member = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
 # --- Outputs ---
 output "function_deployer_email" {
   value       = google_service_account.function_deployer.email
