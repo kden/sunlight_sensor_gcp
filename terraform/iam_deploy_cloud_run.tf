@@ -28,10 +28,18 @@ resource "google_project_iam_member" "webapp_deployer_firebase_admin" {
   member  = "serviceAccount:${google_service_account.webapp_deployer.email}"
 }
 
+
 # --- Allow GitHub Actions to impersonate the Web App Deployer SA ---
 resource "google_service_account_iam_member" "webapp_deployer_wif_user" {
   service_account_id = google_service_account.webapp_deployer.name
   role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.subject/repo:${var.github_org}/${var.github_repo}:*"
+  depends_on         = [google_iam_workload_identity_pool_provider.github_provider]
+}
+
+resource "google_service_account_iam_member" "webapp_deployer_token_creator" {
+  service_account_id = google_service_account.webapp_deployer.name
+  role               = "roles/iam.serviceAccountTokenCreator"
   member             = "principalSet://iam.googleapis.com/projects/${data.google_project.project.number}/locations/global/workloadIdentityPools/${google_iam_workload_identity_pool.github_pool.workload_identity_pool_id}/attribute.subject/repo:${var.github_org}/${var.github_repo}:*"
   depends_on         = [google_iam_workload_identity_pool_provider.github_provider]
 }
