@@ -22,7 +22,6 @@ jobs:
     permissions:
       contents: 'read'
       id-token: 'write'
-      checks: 'write'
 
     runs-on: ubuntu-latest
 
@@ -52,16 +51,22 @@ jobs:
       - name: Print gcloud identity
         run: gcloud auth list
 
-      - name: Deploy Cloud Function
-        uses: 'google-github-actions/deploy-cloud-functions@v2'
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
         with:
-          name: 'sensor-status-monitor-function'
-          runtime: 'python311'
-          project_id: '${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}'
-          region: 'us-central1'
-          source_dir: './functions/sensor_status_monitor/src'
-          entry_point: 'process_sensor_status'
-          event_trigger_type: 'providers/cloud.pubsub/eventTypes/topic.publish'
-          event_trigger_resource: 'projects/${{ secrets.GCP_PROJECT_ID }}/topics/sun-sensor-ingest-topic'
-          event_trigger_retry: 'true'
-          service_account_email: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME }}'
+          version: '>= 363.0.0'
+      - name: 'Use gcloud CLI'
+        run: 'gcloud info'
+
+      - name: 'Deploy Gen2 Cloud Function'
+        run: |
+          gcloud functions deploy sensor-status-monitor-function \
+          --gen2 \
+          --region=us-central1 \
+          --runtime=python311 \
+          --source=./functions/sensor_status_monitor/src \
+          --entry-point=process_sensor_status \
+          --trigger-topic=projects/${PROJECT_ID}/topics/sun-sensor-ingest-topic
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
