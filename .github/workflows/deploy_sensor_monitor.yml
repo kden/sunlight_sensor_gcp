@@ -54,19 +54,20 @@ jobs:
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v1'
         with:
-          version: '>= 363.0.0'
+          version: '>= 530.0.0'
+
       - name: 'Use gcloud CLI'
         run: 'gcloud info'
 
       - name: 'Deploy Gen2 Cloud Function'
-        run: |
-          gcloud functions deploy sensor-status-monitor-function \
-          --gen2 \
-          --region=us-central1 \
-          --runtime=python311 \
-          --source=./functions/sensor_status_monitor/src \
-          --entry-point=process_sensor_status \
-          --trigger-topic=projects/${PROJECT_ID}/topics/sun-sensor-ingest-topic
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          gcloud functions deploy sensor-status-monitor-function \
+            --gen2 \
+            --region=us-central1 \
+            --runtime=python311 \
+            --source=./functions/sensor_status_monitor/src \
+            --entry-point=process_sensor_status \
+            --trigger-topic=projects/$GCP_PROJECT_ID/topics/sun-sensor-ingest-topic
 
