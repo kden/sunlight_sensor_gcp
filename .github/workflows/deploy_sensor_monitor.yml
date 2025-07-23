@@ -60,6 +60,8 @@ jobs:
         run: 'gcloud info'
 
       - name: 'Deploy Gen2 Cloud Function'
+        env:
+          RUNTIME_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME }}
         run: |
           gcloud functions deploy sensor-status-monitor-function \
             --gen2 \
@@ -68,4 +70,5 @@ jobs:
             --source=./functions/sensor_status_monitor/src \
             --entry-point=process_sensor_status \
             --trigger-topic=sun-sensor-ingest-topic
+            --service-account=$RUNTIME_SERVICE_ACCOUNT
 
