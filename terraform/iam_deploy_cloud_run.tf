@@ -14,6 +14,13 @@ resource "google_service_account" "webapp_deployer" {
   display_name = "GitHub Actions Web App Deployer"
 }
 
+# Would rather not use this since we have a custom service account
+resource "google_service_account_iam_member" "webapp_deployer_act_as_compute_default" {
+  service_account_id = "projects/${var.gcp_project_id}/serviceAccounts/${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.webapp_deployer.email}"
+}
+
 # --- Grant the Service Account permission to deploy to Firebase Hosting ---
 resource "google_project_iam_member" "webapp_deployer_firebase_admin" {
   project = var.gcp_project_id

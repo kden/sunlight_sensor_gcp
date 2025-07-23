@@ -29,10 +29,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Debug service account email
-        run: |
-          echo "Using service account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}"
-
       - name: Authenticate to Google Cloud
         id: auth
         uses: 'google-github-actions/auth@v2'
@@ -53,24 +49,18 @@ jobs:
 #          ACTIONS_ID_TOKEN_REQUEST_TOKEN: ${{ steps.auth.outputs.id_token }}
 
 
-      - name: 'Debug authentication and service accounts'
-        run: |
-          echo "=== Current gcloud configuration ==="
-          gcloud config list
-          echo "=== Current authenticated account ==="
-          gcloud auth list --format="value(account)"
-          echo "=== Available service accounts in project ==="
-          gcloud iam service-accounts list
-          echo "=== Testing if runtime service account exists ==="
-          gcloud iam service-accounts describe ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME }} || echo "Runtime SA not found"
-          echo "=== Project number ==="
-          gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)"
-
-
-      - name: 'Print gcloud identity'
-        run: 'gcloud auth list'
-        env:
-          CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
+#      - name: 'Debug authentication and service accounts'
+#        run: |
+#          echo "=== Current gcloud configuration ==="
+#          gcloud config list
+#          echo "=== Current authenticated account ==="
+#          gcloud auth list --format="value(account)"
+#          echo "=== Available service accounts in project ==="
+#          gcloud iam service-accounts list
+#          echo "=== Testing if runtime service account exists ==="
+#          gcloud iam service-accounts describe ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME }} || echo "Runtime SA not found"
+#          echo "=== Project number ==="
+#          gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)"
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
