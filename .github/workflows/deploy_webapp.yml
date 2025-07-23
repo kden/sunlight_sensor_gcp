@@ -91,7 +91,6 @@ jobs:
       - name: Deploy to Firebase Hosting
         run: |
           cd sunlight_web_app
-          firebase deploy --only hosting --project "$PROJECT_ID"
+          firebase deploy --only hosting --project "$PROJECT_ID" --debug
         env:
           PROJECT_ID: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
-          FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
