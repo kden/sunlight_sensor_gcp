@@ -32,6 +32,9 @@ jobs:
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_WEBAPP }}'
           create_credentials_file: true
           export_environment_variables: true
+          access_token_lifetime: 300s
+          access_token_scopes: |-
+            https://www.googleapis.com/auth/firebase   
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -84,3 +87,4 @@ jobs:
           firebase deploy --only hosting --project "$PROJECT_ID"
         env:
           PROJECT_ID: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
+          FIREBASE_TOKEN: ${{ steps.auth.outputs.access_token }}
