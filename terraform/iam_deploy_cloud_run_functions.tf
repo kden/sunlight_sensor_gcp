@@ -14,11 +14,11 @@ resource "google_service_account" "function_deployer" {
 }
 
 # Would rather not use this since we have a custom service account
-resource "google_service_account_iam_member" "function_deployer_act_as_compute_default" {
-  service_account_id = "projects/${var.gcp_project_id}/serviceAccounts/${data.google_project.project.number}-compute@developer.gserviceaccount.com"
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.function_deployer.email}"
-}
+# resource "google_service_account_iam_member" "function_deployer_act_as_compute_default" {
+#   service_account_id = "projects/${var.gcp_project_id}/serviceAccounts/${data.google_project.project.number}-compute@developer.gserviceaccount.com"
+#   role               = "roles/iam.serviceAccountUser"
+#   member             = "serviceAccount:${google_service_account.function_deployer.email}"
+# }
 
 # --- Grant the Service Account permission to deploy Cloud Functions ---
 resource "google_project_iam_member" "function_deployer_functions_admin" {
