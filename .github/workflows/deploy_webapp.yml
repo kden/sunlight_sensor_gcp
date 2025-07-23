@@ -82,13 +82,11 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ steps.set_firebase_env.outputs.appId }}
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ steps.set_firebase_env.outputs.measurementId }}
 
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
       - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          # FIX: Use the access token from the auth step for authentication.
-          # This bypasses the problematic file-based credential logic.
-          token: '${{ steps.auth.outputs.access_token }}'
-          channelId: live
-          projectId: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
-          entryPoint: ./sunlight_web_app
+        run: |
+          firebase deploy --only hosting --project $PROJECT_ID --token "$(gcloud auth print-access-token)"
+        env:
+          PROJECT_ID: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
