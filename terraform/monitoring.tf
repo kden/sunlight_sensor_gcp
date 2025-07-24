@@ -117,7 +117,7 @@ resource "google_monitoring_alert_policy" "status_alert_policy" {
       A sensor has reported a new status.
 
       **Details:**
-      - **Project ID:** `$${project.id}`
+      - **Project ID:** `$${resource.label.project_id}`
       - **Sensor ID:** `$${metric.label.sensor_id}`
       - **Sensor Set:** `$${metric.label.sensor_set_id}`
       - **Reported Status:** `$${metric.label.status}`
@@ -207,7 +207,7 @@ resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
       A sensor has not sent a ping for over 15 minutes and may be offline.
 
       **Details:**
-      - **Project ID:** `$${project.id}`
+      - **Project ID:** `$${resource.label.project_id}`
       - **Sensor ID:** `$${metric.label.sensor_id}`
       - **Sensor Set:** `$${metric.label.sensor_set_id}`
       - **Last Seen:** More than 15 minutes ago.

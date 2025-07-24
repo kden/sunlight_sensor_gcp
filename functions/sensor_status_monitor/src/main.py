@@ -51,7 +51,7 @@ def process_sensor_status(cloud_event):
                     "message": f"Status update from {sensor_id}: {status_message}",
                     "sensor_id": sensor_id,
                     "sensor_set_id": sensor_set_id,
-                    "status_message": status_message,
+                    "status": status_message,
                     "log_name": "sensor_status_alert",
                     "data_payload": reading  # Include the original data for context
                 }
