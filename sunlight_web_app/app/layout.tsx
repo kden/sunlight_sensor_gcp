@@ -43,7 +43,6 @@ export default function RootLayout({
             <h1 className="text-2xl font-bold mb-4 text-amber-300">Sunlight Dashboard</h1>
             <nav>
               <ul>
-
                 <li className="mb-2">
                   <Link href="/" className="hover:text-amber-300 block py-2">
                     Sensor Levels
@@ -54,9 +53,14 @@ export default function RootLayout({
                     Sensor Heatmap
                   </Link>
                 </li>
-                <li>
+                <li className="mb-2">
                   <Link href="/details" className="hover:text-amber-300 block py-2">
                     Sensor Details
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/help" className="hover:text-amber-300 block py-2">
+                    Help
                   </Link>
                 </li>
               </ul>
