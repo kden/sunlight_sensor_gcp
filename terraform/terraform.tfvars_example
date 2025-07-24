@@ -1,7 +1,7 @@
 # terraform.tfvars_example
 
 # Google Cloud project ID
-project_id = "my-gcp-project-id"
+gcp_project_id = "my-gcp-project-id"
 
 # BigQuery dataset for storing sensor data
 dataset_id = "sunlight_data"
