@@ -59,7 +59,7 @@ export default function HelpPage() {
           <dd className="mt-2 pl-2 text-white">
             The data will be somewhere between 20-50 minutes behind. This is because:
             <ol className="list-disc list-inside space-y-2 mt-2 pl-4">
-              <li>Every 5 minutes, the sensor sends a buffered list of readings that were taken every 5 minutes.</li>
+              <li>Every 5 minutes, the sensor sends a buffered list of readings that were taken every 15 seconds.</li>
               <li>The data then travels through a REST proxy and Google Pub/Sub to BigQuery.</li>
               <li>BigQuery then runs 2 scheduled queries, that run every 15 minutes to go through two data processing steps.</li>
               <li>Finally, every 15 minutes a scheduled function downsamples and transfers that data to Firestore where it is used by the web app.</li>
