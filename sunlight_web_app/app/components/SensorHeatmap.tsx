@@ -86,6 +86,9 @@ const SensorHeatmap = () => {
         setChartData([]);
         return;
     }
+    if (currentTimeIndex >= timestamps.length) {
+        return;
+    }
     const currentTimestamp = timestamps[currentTimeIndex];
     const currentReadings = readings[currentTimestamp] || {};
     const newChartData: ChartDataPoint[] = sensorMetadata.map(sensor => ({
