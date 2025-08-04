@@ -13,6 +13,7 @@ on:
   push:
     branches:
       - main
+      - 4_deploy_daily_open_meteo_function_from_github_action
     paths:
       # Only run when files in the function's directory change
       - 'functions/daily_open_meteo/**'
