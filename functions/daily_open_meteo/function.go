@@ -154,7 +154,8 @@ func DailyWeatherer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	meteoData, err := fetchWeatherData(sensorSet)
+	// Use the default HTTP client for production, but allow injection for tests.
+	meteoData, err := fetchWeatherData(http.DefaultClient, sensorSet)
 	if err != nil {
 		log.Printf("fetchWeatherData: %v", err)
 		http.Error(w, "Failed to fetch weather data", http.StatusInternalServerError)
@@ -223,7 +224,7 @@ func getSensorSet(ctx context.Context, client *bigquery.Client, sensorSetID stri
 }
 
 // fetchWeatherData calls the Open-Meteo API to get daily and hourly weather data.
-func fetchWeatherData(ss *SensorSet) (*MeteoResponse, error) {
+func fetchWeatherData(client *http.Client, ss *SensorSet) (*MeteoResponse, error) {
 	// Fetch data for yesterday.
 	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 	apiURL := fmt.Sprintf(
@@ -231,7 +232,7 @@ func fetchWeatherData(ss *SensorSet) (*MeteoResponse, error) {
 		ss.Latitude, ss.Longitude, yesterday, yesterday, ss.Timezone,
 	)
 
-	resp, err := http.Get(apiURL)
+	resp, err := client.Get(apiURL)
 	if err != nil {
 		return nil, fmt.Errorf("http.Get: %w", err)
 	}
