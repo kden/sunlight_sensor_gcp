@@ -71,7 +71,7 @@ export const useDailyWeather = (selectedDate: string, selectedSensorSet: string)
             showers_sum: rawData.showers_sum ?? null,
             precipitation_sum: rawData.precipitation_sum ?? null,
             snowfall_sum: rawData.snowfall_sum ?? null,
-            precipitation_hours rawData.precipitation_hours ?? null,
+            precipitation_hours: rawData.precipitation_hours ?? null,
             data_source: rawData.data_source ?? null,
             sensor_set_id: rawData.sensor_set_id ?? null,
             timezone: rawData.timezone ?? null,
