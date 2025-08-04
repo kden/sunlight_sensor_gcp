@@ -25,7 +25,7 @@ export interface DailyWeather {
   showers_sum: number | null;
   precipitation_sum: number | null;
   snowfall_sum: number | null;
-  precipitation_hour: number | null;
+  precipitation_hours: number | null;
   data_source: string | null;
   sensor_set_id: string | null;
   timezone: string | null;

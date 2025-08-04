@@ -57,7 +57,7 @@ const WeatherDataTable: React.FC<WeatherDataTableProps> = ({ data, timezone }) =
         { label: 'Total Showers', value: data.showers_sum !== null ? `${data.showers_sum.toFixed(1)} mm` : 'N/A' },
         { label: 'Total Precipitation', value: data.precipitation_sum !== null ? `${data.precipitation_sum.toFixed(1)} mm` : 'N/A' },
         { label: 'Total Snowfall', value: data.snowfall_sum !== null ? `${data.snowfall_sum.toFixed(1)} cm` : 'N/A' },
-        { label: 'Hours with Precipitation', value: data.precipitation_hour ?? 'N/A' },
+        { label: 'Hours with Precipitation', value: data.precipitation_hours ?? 'N/A' },
         { label: 'Data Source', value: data.data_source ?? 'N/A' },
     ];
 

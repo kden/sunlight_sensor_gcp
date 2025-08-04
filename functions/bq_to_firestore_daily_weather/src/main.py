@@ -8,7 +8,7 @@ Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025
 Apache 2.0 Licensed as described in the file LICENSE
 """
 from google.cloud import bigquery, firestore
-from datetime import date, datetime, time
+from datetime import datetime, time
 
 # --- Configuration ---
 # The BigQuery dataset and table to read from.
@@ -98,7 +98,7 @@ def export_weather_to_firestore(event, context):
             "showers_sum": row.get("showers_sum"),
             "precipitation_sum": row.get("precipitation_sum"),
             "snowfall_sum": row.get("snowfall_sum"),
-            "precipitation_hour": row.get("precipitation_hour"),
+            "precipitation_hours": row.get("precipitation_hours"),
             "data_source": row.get("data_source"),
             "sensor_set_id": sensor_set_id,
             "timezone": row.get("timezone"),
