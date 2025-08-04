@@ -278,11 +278,14 @@ func insertDailyData(ctx context.Context, client *bigquery.Client, data *MeteoRe
 	`
 	q := client.Query(mergeSQL)
 
-	sunrise, err := time.Parse(time.RFC3339, data.Daily.Sunrise[0])
+	// The API returns sunrise/sunset in "YYYY-MM-DDTHH:MM" format, which is not RFC3339.
+	// We must provide a matching layout string to parse it correctly.
+	const timeLayout = "2006-01-02T15:04"
+	sunrise, err := time.Parse(timeLayout, data.Daily.Sunrise[0])
 	if err != nil {
 		return fmt.Errorf("parsing sunrise: %w", err)
 	}
-	sunset, err := time.Parse(time.RFC3339, data.Daily.Sunset[0])
+	sunset, err := time.Parse(timeLayout, data.Daily.Sunset[0])
 	if err != nil {
 		return fmt.Errorf("parsing sunset: %w", err)
 	}
