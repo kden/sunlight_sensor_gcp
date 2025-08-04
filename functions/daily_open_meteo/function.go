@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"cloud.google.com/go/civil"
 	"github.com/GoogleCloudPlatform/functions-framework-go/functions"
 	"google.golang.org/api/iterator"
 )
@@ -278,6 +279,13 @@ func insertDailyData(ctx context.Context, client *bigquery.Client, data *MeteoRe
 	`
 	q := client.Query(mergeSQL)
 
+	// The date from the API is a string "YYYY-MM-DD", but the BigQuery column is a DATE.
+	// We must parse it to a civil.Date object for the client library to handle it correctly.
+	parsedDate, err := civil.ParseDate(data.Daily.Time[0])
+	if err != nil {
+		return fmt.Errorf("parsing date string '%s': %w", data.Daily.Time[0], err)
+	}
+
 	// The API returns sunrise/sunset in "YYYY-MM-DDTHH:MM" format, which is not RFC3339.
 	// We must provide a matching layout string to parse it correctly.
 	const timeLayout = "2006-01-02T15:04"
@@ -291,7 +299,7 @@ func insertDailyData(ctx context.Context, client *bigquery.Client, data *MeteoRe
 	}
 
 	q.Parameters = []bigquery.QueryParameter{
-		{Name: "date", Value: data.Daily.Time[0]},
+		{Name: "date", Value: parsedDate},
 		{Name: "sunrise", Value: sunrise},
 		{Name: "sunset", Value: sunset},
 		{Name: "daylight_duration", Value: data.Daily.DaylightDuration[0]},
