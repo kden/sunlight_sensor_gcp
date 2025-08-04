@@ -56,19 +56,19 @@ type MeteoResponse struct {
 		PrecipitationHours []float64 `json:"precipitation_hours"`
 	} `json:"daily"`
 	Hourly struct {
-		Time               []string  `json:"time"`
-		Temperature2m      []float64 `json:"temperature_2m"`
-		Precipitation      []float64 `json:"precipitation"`
-		RelativeHumidity2m []float64 `json:"relative_humidity_2m"`
-		CloudCover         []float64 `json:"cloud_cover"`
-		Visibility         []float64 `json:"visibility"`
-		SoilTemperature0cm []float64 `json:"soil_temperature_0cm"`
-		SoilMoisture1To3cm []float64 `json:"soil_moisture_1_to_3cm"`
-		UvIndex            []float64 `json:"uv_index"`
-		UvIndexClearSky    []float64 `json:"uv_index_clear_sky"`
-		ShortwaveRadiation []float64 `json:"shortwave_radiation"`
-		DirectRadiation    []float64 `json:"direct_radiation"`
-		WindSpeed10m       []float64 `json:"wind_speed_10m"`
+		Time                 []string  `json:"time"`
+		Temperature2m        []float64 `json:"temperature_2m"`
+		Precipitation        []float64 `json:"precipitation"`
+		RelativeHumidity2m   []float64 `json:"relative_humidity_2m"`
+		CloudCover           []float64 `json:"cloud_cover"`
+		Visibility           []float64 `json:"visibility"`
+		SoilTemperature0cm   []float64 `json:"soil_temperature_0cm"`
+		SoilMoisture1To3cm   []float64 `json:"soil_moisture_1_to_3cm"`
+		UvIndex              []float64 `json:"uv_index"`
+		UvIndexClearSky      []float64 `json:"uv_index_clear_sky"`
+		ShortwaveRadiation   []float64 `json:"shortwave_radiation"`
+		DirectRadiation      []float64 `json:"direct_radiation"`
+		WindSpeed10m         []float64 `json:"wind_speed_10m"`
 	} `json:"hourly"`
 }
 
@@ -98,25 +98,25 @@ type WeatherRecord struct {
 
 // HourlyWeatherRecord represents a single row in the hourly_historical_weather BigQuery table.
 type HourlyWeatherRecord struct {
-	Time               time.Time `bigquery:"time"`
-	SensorSetID        string    `bigquery:"sensor_set_id"`
-	Temperature2m      float64   `bigquery:"temperature_2m"`
-	Precipitation      float64   `bigquery:"precipitation"`
-	RelativeHumidity2m float64   `bigquery:"relative_humidity_2m"`
-	CloudCover         float64   `bigquery:"cloud_cover"`
-	Visibility         float64   `bigquery:"visibility"`
-	SoilTemperature0cm float64   `bigquery:"soil_temperature_0cm"`
-	SoilMoisture1To3cm float64   `bigquery:"soil_moisture_1_to_3cm"`
-	UvIndex            float64   `bigquery:"uv_index"`
-	UvIndexClearSky    float64   `bigquery:"uv_index_clear_sky"`
-	ShortwaveRadiation float64   `bigquery:"shortwave_radiation"`
-	DirectRadiation    float64   `bigquery:"direct_radiation"`
-	WindSpeed10m       float64   `bigquery:"wind_speed_10m"`
-	Timezone           string    `bigquery:"timezone"`
-	Latitude           float64   `bigquery:"latitude"`
-	Longitude          float64   `bigquery:"longitude"`
-	DataSource         string    `bigquery:"data_source"`
-	LastUpdated        time.Time `bigquery:"last_updated"`
+	Time                 time.Time `bigquery:"time"`
+	SensorSetID          string    `bigquery:"sensor_set_id"`
+	Temperature2m        float64   `bigquery:"temperature_2m"`
+	Precipitation        float64   `bigquery:"precipitation"`
+	RelativeHumidity2m   float64   `bigquery:"relative_humidity_2m"`
+	CloudCover           float64   `bigquery:"cloud_cover"`
+	Visibility           float64   `bigquery:"visibility"`
+	SoilTemperature0cm   float64   `bigquery:"soil_temperature_0cm"`
+	SoilMoisture1To3cm   float64   `bigquery:"soil_moisture_1_to_3cm"`
+	UvIndex              float64   `bigquery:"uv_index"`
+	UvIndexClearSky      float64   `bigquery:"uv_index_clear_sky"`
+	ShortwaveRadiation   float64   `bigquery:"shortwave_radiation"`
+	DirectRadiation      float64   `bigquery:"direct_radiation"`
+	WindSpeed10m         float64   `bigquery:"wind_speed_10m"`
+	Timezone             string    `bigquery:"timezone"`
+	Latitude             float64   `bigquery:"latitude"`
+	Longitude            float64   `bigquery:"longitude"`
+	DataSource           string    `bigquery:"data_source"`
+	LastUpdated          time.Time `bigquery:"last_updated"`
 }
 
 // DailyWeatherer is the entry point for the Cloud Function.
@@ -172,6 +172,18 @@ func DailyWeatherer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get configurable timeout for hourly operations (default 10 minutes)
+	hourlyTimeoutStr := os.Getenv("HOURLY_INSERT_TIMEOUT")
+	hourlyTimeout := 10 * time.Minute // default
+	if hourlyTimeoutStr != "" {
+		if parsed, err := time.ParseDuration(hourlyTimeoutStr); err == nil {
+			hourlyTimeout = parsed
+			log.Printf("INFO: Using custom hourly timeout: %v", hourlyTimeout)
+		} else {
+			log.Printf("WARNING: Invalid HOURLY_INSERT_TIMEOUT format '%s', using default %v", hourlyTimeoutStr, hourlyTimeout)
+		}
+	}
+
 	// Use goroutines to insert daily and hourly data concurrently
 	var wg sync.WaitGroup
 	var dailyErr, hourlyErr error
@@ -183,11 +195,14 @@ func DailyWeatherer(w http.ResponseWriter, r *http.Request) {
 		dailyErr = insertDailyWeatherData(ctx, client, projectID, sensorSet, sensorSetData, weatherData)
 	}()
 
-	// Insert hourly weather data
+	// Insert hourly weather data using batch method with extended timeout
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		hourlyErr = insertHourlyWeatherData(ctx, client, projectID, sensorSet, sensorSetData, weatherData)
+		// Create a context with a longer timeout for hourly data processing
+		hourlyCtx, cancel := context.WithTimeout(ctx, hourlyTimeout)
+		defer cancel()
+		hourlyErr = insertHourlyWeatherDataBatch(hourlyCtx, client, projectID, sensorSet, sensorSetData, weatherData)
 	}()
 
 	// Wait for both goroutines to complete
