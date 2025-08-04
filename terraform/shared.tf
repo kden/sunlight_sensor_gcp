@@ -64,3 +64,15 @@ locals {
 data "google_project" "project" {
   project_id = var.gcp_project_id
 }
+
+# --- Variable for your notification email ---
+variable "alert_email_address" {
+  type        = string
+  description = "The destination email address for alerts."
+}
+
+variable "alert_phone_number" {
+  type        = string
+  description = "The destination E.164 phone number for SMS alerts (e.g., +15551234567)."
+  sensitive   = true
+}

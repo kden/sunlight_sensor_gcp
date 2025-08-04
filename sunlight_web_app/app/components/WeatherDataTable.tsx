@@ -69,8 +69,9 @@ const WeatherDataTable: React.FC<WeatherDataTableProps> = ({ data, timezone }) =
                     <tbody>
                         {weatherDetails.map(({ label, value }) => (
                             <tr key={label} className="border-b border-gray-700 last:border-b-0">
-                                <td className="p-3 font-medium text-gray-300 whitespace-nowrap">{label}</td>
-                                <td className="p-3 text-gray-100 w-full">{String(value)}</td>
+                                {/* FIX: Reduced vertical padding for a more compact layout */}
+                                <td className="py-1.5 px-3 font-medium text-gray-300 whitespace-nowrap">{label}</td>
+                                <td className="py-1.5 px-3 text-gray-100 w-full">{String(value)}</td>
                             </tr>
                         ))}
                     </tbody>

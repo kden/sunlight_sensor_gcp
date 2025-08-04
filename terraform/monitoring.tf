@@ -7,17 +7,6 @@
 # Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
 # Apache 2.0 Licensed as described in the file LICENSE
 
-# --- Variable for your notification email ---
-variable "alert_email_address" {
-  type        = string
-  description = "The destination email address for alerts."
-}
-
-variable "alert_phone_number" {
-  type        = string
-  description = "The destination E.164 phone number for SMS alerts (e.g., +15551234567)."
-  sensitive   = true
-}
 
 # --- 1. Create a Notification Channel ---
 # This defines where the alert notifications will be sent.
