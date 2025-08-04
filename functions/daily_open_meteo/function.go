@@ -199,7 +199,7 @@ func DailyWeatherer(w http.ResponseWriter, r *http.Request) {
 // getSensorSet retrieves the latitude, longitude, and timezone for a given sensor set.
 func getSensorSet(ctx context.Context, client *bigquery.Client, sensorSetID string) (*SensorSet, error) {
 	query := client.Query(
-		`SELECT latitude, longitude, timezone FROM sunlight_dataset.sensor_sets WHERE id = @sensorSetID`,
+		`SELECT latitude, longitude, timezone FROM sunlight_data.sensor_sets WHERE id = @sensorSetID`,
 	)
 	query.Parameters = []bigquery.QueryParameter{
 		{Name: "sensorSetID", Value: sensorSetID},
@@ -259,7 +259,7 @@ func insertDailyData(ctx context.Context, client *bigquery.Client, data *MeteoRe
 
 	// Using MERGE for an "upsert" operation on the daily data.
 	mergeSQL := `
-	MERGE sunlight_dataset.daily_historical_weather T
+	MERGE sunlight_data.daily_historical_weather T
 	USING (SELECT @date as date, @sensor_set_id as sensor_set_id) S
 	ON T.date = S.date AND T.sensor_set_id = S.sensor_set_id
 	WHEN MATCHED THEN
@@ -332,7 +332,7 @@ func insertHourlyData(ctx context.Context, client *bigquery.Client, data *MeteoR
 		return nil
 	}
 
-	inserter := client.Dataset("sunlight_dataset").Table("hourly_historical_weather").Inserter()
+	inserter := client.Dataset("sunlight_data").Table("hourly_historical_weather").Inserter()
 	var records []*HourlyWeatherRecord
 
 	for i := range data.Hourly.Time {
