@@ -200,7 +200,7 @@ func DailyWeatherer(w http.ResponseWriter, r *http.Request) {
 // getSensorSet retrieves the latitude, longitude, and timezone for a given sensor set.
 func getSensorSet(ctx context.Context, client *bigquery.Client, sensorSetID string) (*SensorSet, error) {
 	query := client.Query(
-		`SELECT latitude, longitude, timezone FROM sunlight_data.sensor_set WHERE id = @sensorSetID`,
+		`SELECT latitude, longitude, timezone FROM sunlight_data.sensor_set WHERE sensor_set_id = @sensorSetID`,
 	)
 	query.Parameters = []bigquery.QueryParameter{
 		{Name: "sensorSetID", Value: sensorSetID},
