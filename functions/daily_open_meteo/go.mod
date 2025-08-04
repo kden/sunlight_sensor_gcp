@@ -3,13 +3,13 @@ module codepaw.com/weather-function
 go 1.19
 
 require (
-	cloud.google.com/go v0.110.2
 	cloud.google.com/go/bigquery v1.52.0
 	github.com/GoogleCloudPlatform/functions-framework-go v1.8.0
 	google.golang.org/api v0.126.0
 )
 
 require (
+	cloud.google.com/go v0.110.2 // indirect
 	cloud.google.com/go/compute v1.19.3 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v1.1.0 // indirect

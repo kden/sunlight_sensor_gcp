@@ -498,3 +498,185 @@ func insertHourlyWeatherData(ctx context.Context, client *bigquery.Client, proje
 	log.Printf("INFO: Successfully inserted %d hourly weather records.", len(weatherData.Hourly.Time))
 	return nil
 }
+
+func insertHourlyWeatherDataBatch(ctx context.Context, client *bigquery.Client, projectID, sensorSetID string, sensorSetData *SensorSet, weatherData *MeteoResponse) error {
+	log.Printf("INFO: Preparing to batch insert %d hourly weather records into BigQuery.", len(weatherData.Hourly.Time))
+
+	// Check if context has been cancelled or timed out
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("context cancelled before starting hourly insert: %v", ctx.Err())
+	default:
+	}
+
+	// Use temporary table + MERGE approach
+	return insertHourlyWithTempTableMerge(ctx, client, projectID, sensorSetID, sensorSetData, weatherData)
+}
+
+func insertHourlyWithTempTableMerge(ctx context.Context, client *bigquery.Client, projectID, sensorSetID string, sensorSetData *SensorSet, weatherData *MeteoResponse) error {
+	// Create a temporary table name
+	tempTableID := fmt.Sprintf("temp_hourly_weather_%s_%d", sensorSetID, time.Now().Unix())
+
+	dataset := client.Dataset("sunlight_data")
+	tempTable := dataset.Table(tempTableID)
+
+	// Define the schema for the temporary table (same as hourly table)
+	schema := bigquery.Schema{
+		{Name: "time", Type: bigquery.TimestampFieldType, Required: true},
+		{Name: "sensor_set_id", Type: bigquery.StringFieldType, Required: true},
+		{Name: "temperature_2m", Type: bigquery.FloatFieldType},
+		{Name: "precipitation", Type: bigquery.FloatFieldType},
+		{Name: "relative_humidity_2m", Type: bigquery.FloatFieldType},
+		{Name: "cloud_cover", Type: bigquery.FloatFieldType},
+		{Name: "visibility", Type: bigquery.FloatFieldType},
+		{Name: "soil_temperature_0cm", Type: bigquery.FloatFieldType},
+		{Name: "soil_moisture_1_to_3cm", Type: bigquery.FloatFieldType},
+		{Name: "uv_index", Type: bigquery.FloatFieldType},
+		{Name: "uv_index_clear_sky", Type: bigquery.FloatFieldType},
+		{Name: "shortwave_radiation", Type: bigquery.FloatFieldType},
+		{Name: "direct_radiation", Type: bigquery.FloatFieldType},
+		{Name: "wind_speed_10m", Type: bigquery.FloatFieldType},
+		{Name: "timezone", Type: bigquery.StringFieldType},
+		{Name: "latitude", Type: bigquery.FloatFieldType},
+		{Name: "longitude", Type: bigquery.FloatFieldType},
+		{Name: "data_source", Type: bigquery.StringFieldType},
+		{Name: "last_updated", Type: bigquery.TimestampFieldType},
+	}
+
+	// Create temporary table
+	if err := tempTable.Create(ctx, &bigquery.TableMetadata{
+		Schema:          schema,
+		ExpirationTime:  time.Now().Add(24 * time.Hour), // Auto-delete after 24 hours
+	}); err != nil {
+		return fmt.Errorf("failed to create temporary table: %v", err)
+	}
+
+	// Ensure cleanup of temp table
+	defer func() {
+		if err := tempTable.Delete(ctx); err != nil {
+			log.Printf("WARNING: Failed to delete temporary table %s: %v", tempTableID, err)
+		}
+	}()
+
+	// Prepare batch data
+	var records []HourlyWeatherRecord
+	now := time.Now().UTC()
+
+	// Helper function to safely get float value from slice
+	getFloatValue := func(slice []float64, index int) float64 {
+		if index < len(slice) {
+			return slice[index]
+		}
+		return 0.0
+	}
+
+	for i, timeStr := range weatherData.Hourly.Time {
+		// Parse the ISO 8601 timestamp
+		hourlyTime, err := time.Parse("2006-01-02T15:04", timeStr)
+		if err != nil {
+			log.Printf("ERROR: Failed to parse hourly timestamp '%s': %v", timeStr, err)
+			continue
+		}
+
+		record := HourlyWeatherRecord{
+			Time:                 hourlyTime,
+			SensorSetID:          sensorSetID,
+			Temperature2m:        getFloatValue(weatherData.Hourly.Temperature2m, i),
+			Precipitation:        getFloatValue(weatherData.Hourly.Precipitation, i),
+			RelativeHumidity2m:   getFloatValue(weatherData.Hourly.RelativeHumidity2m, i),
+			CloudCover:           getFloatValue(weatherData.Hourly.CloudCover, i),
+			Visibility:           getFloatValue(weatherData.Hourly.Visibility, i),
+			SoilTemperature0cm:   getFloatValue(weatherData.Hourly.SoilTemperature0cm, i),
+			SoilMoisture1To3cm:   getFloatValue(weatherData.Hourly.SoilMoisture1To3cm, i),
+			UvIndex:              getFloatValue(weatherData.Hourly.UvIndex, i),
+			UvIndexClearSky:      getFloatValue(weatherData.Hourly.UvIndexClearSky, i),
+			ShortwaveRadiation:   getFloatValue(weatherData.Hourly.ShortwaveRadiation, i),
+			DirectRadiation:      getFloatValue(weatherData.Hourly.DirectRadiation, i),
+			WindSpeed10m:         getFloatValue(weatherData.Hourly.WindSpeed10m, i),
+			Timezone:             sensorSetData.Timezone,
+			Latitude:             sensorSetData.Latitude,
+			Longitude:            sensorSetData.Longitude,
+			DataSource:           "open-meteo",
+			LastUpdated:          now,
+		}
+		records = append(records, record)
+	}
+
+	if len(records) == 0 {
+		return fmt.Errorf("no valid hourly records to insert")
+	}
+
+	// Batch insert into temporary table with timeout check
+	inserter := tempTable.Inserter()
+
+	// Check context before expensive operation
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("context cancelled before batch insert: %v", ctx.Err())
+	default:
+	}
+
+	log.Printf("INFO: Starting batch insert of %d records into temporary table", len(records))
+	if err := inserter.Put(ctx, records); err != nil {
+		return fmt.Errorf("failed to batch insert into temporary table: %v", err)
+	}
+
+	log.Printf("INFO: Successfully inserted %d records into temporary table", len(records))
+
+	// Check context before MERGE operation
+	select {
+	case <-ctx.Done():
+		return fmt.Errorf("context cancelled before merge operation: %v", ctx.Err())
+	default:
+	}
+
+	// Now perform MERGE operation from temp table to main table
+	mergeQuery := fmt.Sprintf(`
+		MERGE `+"`%s.sunlight_data.hourly_historical_weather`"+` T
+		USING `+"`%s.sunlight_data.%s`"+` S
+		ON T.time = S.time AND T.sensor_set_id = S.sensor_set_id
+		WHEN MATCHED THEN
+			UPDATE SET
+				temperature_2m = S.temperature_2m,
+				precipitation = S.precipitation,
+				relative_humidity_2m = S.relative_humidity_2m,
+				cloud_cover = S.cloud_cover,
+				visibility = S.visibility,
+				soil_temperature_0cm = S.soil_temperature_0cm,
+				soil_moisture_1_to_3cm = S.soil_moisture_1_to_3cm,
+				uv_index = S.uv_index,
+				uv_index_clear_sky = S.uv_index_clear_sky,
+				shortwave_radiation = S.shortwave_radiation,
+				direct_radiation = S.direct_radiation,
+				wind_speed_10m = S.wind_speed_10m,
+				timezone = S.timezone,
+				latitude = S.latitude,
+				longitude = S.longitude,
+				data_source = S.data_source,
+				last_updated = S.last_updated
+		WHEN NOT MATCHED THEN
+			INSERT (time, sensor_set_id, temperature_2m, precipitation, relative_humidity_2m, cloud_cover, visibility, soil_temperature_0cm, soil_moisture_1_to_3cm, uv_index, uv_index_clear_sky, shortwave_radiation, direct_radiation, wind_speed_10m, timezone, latitude, longitude, data_source, last_updated)
+			VALUES(time, sensor_set_id, temperature_2m, precipitation, relative_humidity_2m, cloud_cover, visibility, soil_temperature_0cm, soil_moisture_1_to_3cm, uv_index, uv_index_clear_sky, shortwave_radiation, direct_radiation, wind_speed_10m, timezone, latitude, longitude, data_source, last_updated)
+	`, projectID, projectID, tempTableID)
+
+	query := client.Query(mergeQuery)
+	job, err := query.Run(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to run merge query: %v", err)
+	}
+
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to wait for merge job: %v", err)
+	}
+
+	if err := status.Err(); err != nil {
+		return fmt.Errorf("merge job failed: %v", err)
+	}
+
+	// Get job statistics
+	jobStats := status.Statistics.Details.(*bigquery.QueryStatistics)
+	log.Printf("INFO: Merge completed. Rows affected: %d", jobStats.NumDMLAffectedRows)
+
+	return nil
+}
