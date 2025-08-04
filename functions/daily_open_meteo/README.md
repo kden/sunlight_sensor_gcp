@@ -1,4 +1,4 @@
-# Cloud Run Function export_sensors_to_firestore
+# Cloud Run Function daily Open-Meteo
 
 This function configuration is defined in Terraform as [open_meteo_daily_importer_function](/terraform/cloudrun_open_meteo_functions.tf).
 

@@ -1,7 +1,7 @@
 /*
 daily_open_meteo/function.go
 
-Collect daily weather data from Open-Meteo and store it in BigQuery.
+Collects daily and hourly weather data from Open-Meteo and stores it in BigQuery.
 
 Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
 Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
@@ -18,6 +18,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/bigquery"
@@ -37,8 +38,12 @@ type SensorSet struct {
 }
 
 // MeteoResponse represents the structure of the JSON response from the Open-Meteo API.
+// It now includes both daily and hourly data.
 type MeteoResponse struct {
-	Daily struct {
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
+	Timezone  string  `json:"timezone"`
+	Daily     struct {
 		Time               []string  `json:"time"`
 		Sunrise            []string  `json:"sunrise"`
 		Sunset             []string  `json:"sunset"`
@@ -54,6 +59,21 @@ type MeteoResponse struct {
 		SnowfallSum        []float64 `json:"snowfall_sum"`
 		PrecipitationHours []float64 `json:"precipitation_hours"`
 	} `json:"daily"`
+	Hourly struct {
+		Time               []string  `json:"time"`
+		Temperature2m      []float64 `json:"temperature_2m"`
+		Precipitation      []float64 `json:"precipitation"`
+		RelativeHumidity2m []float64 `json:"relative_humidity_2m"`
+		CloudCover         []float64 `json:"cloud_cover"`
+		Visibility         []float64 `json:"visibility"`
+		SoilTemperature0cm []float64 `json:"soil_temperature_0cm"`
+		SoilMoisture1to3cm []float64 `json:"soil_moisture_1_to_3cm"`
+		UvIndex            []float64 `json:"uv_index"`
+		UvIndexClearSky    []float64 `json:"uv_index_clear_sky"`
+		ShortwaveRadiation []float64 `json:"shortwave_radiation"`
+		DirectRadiation    []float64 `json:"direct_radiation"`
+		WindSpeed10m       []float64 `json:"wind_speed_10m"`
+	} `json:"hourly"`
 }
 
 // WeatherRecord represents a single row in the daily_historical_weather BigQuery table.
@@ -71,13 +91,36 @@ type WeatherRecord struct {
 	ShowersSum         float64   `bigquery:"showers_sum"`
 	PrecipitationSum   float64   `bigquery:"precipitation_sum"`
 	SnowfallSum        float64   `bigquery:"snowfall_sum"`
-	PrecipitationHours float64   `bigquery:"precipitation_hour"`
-	DataSource         string    `bigquery:"data_source"`
-	SensorSet          string    `bigquery:"sensor_set_id"`
+	PrecipitationHours float64   `bigquery:"precipitation_hours"`
+	SensorSetID        string    `bigquery:"sensor_set_id"`
 	Timezone           string    `bigquery:"timezone"`
 	Latitude           float64   `bigquery:"latitude"`
 	Longitude          float64   `bigquery:"longitude"`
-    LastUpdated        time.Time `bigquery:"last_updated"`
+	DataSource         string    `bigquery:"data_source"`
+	LastUpdated        time.Time `bigquery:"last_updated"`
+}
+
+// HourlyWeatherRecord represents a single row in the hourly_historical_weather BigQuery table.
+type HourlyWeatherRecord struct {
+	Time               time.Time `bigquery:"time"`
+	SensorSetID        string    `bigquery:"sensor_set_id"`
+	Temperature2m      float64   `bigquery:"temperature_2m"`
+	Precipitation      float64   `bigquery:"precipitation"`
+	RelativeHumidity2m float64   `bigquery:"relative_humidity_2m"`
+	CloudCover         float64   `bigquery:"cloud_cover"`
+	Visibility         float64   `bigquery:"visibility"`
+	SoilTemperature0cm float64   `bigquery:"soil_temperature_0cm"`
+	SoilMoisture1to3cm float64   `bigquery:"soil_moisture_1_to_3cm"`
+	UvIndex            float64   `bigquery:"uv_index"`
+	UvIndexClearSky    float64   `bigquery:"uv_index_clear_sky"`
+	ShortwaveRadiation float64   `bigquery:"shortwave_radiation"`
+	DirectRadiation    float64   `bigquery:"direct_radiation"`
+	WindSpeed10m       float64   `bigquery:"wind_speed_10m"`
+	Timezone           string    `bigquery:"timezone"`
+	Latitude           float64   `bigquery:"latitude"`
+	Longitude          float64   `bigquery:"longitude"`
+	DataSource         string    `bigquery:"data_source"`
+	LastUpdated        time.Time `bigquery:"last_updated"`
 }
 
 // DailyWeatherer is the entry point for the Cloud Function.
@@ -85,223 +128,248 @@ func DailyWeatherer(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	projectID := os.Getenv("GCP_PROJECT")
 	if projectID == "" {
-		log.Println("ERROR: GCP_PROJECT environment variable not set")
-		http.Error(w, "GCP_PROJECT environment variable not set", http.StatusInternalServerError)
+		log.Println("GCP_PROJECT environment variable not set.")
+		http.Error(w, "Server configuration error", http.StatusInternalServerError)
 		return
 	}
 
-	// Get query parameters
-	sensorSet := r.URL.Query().Get("sensor_set_id")
-	startDate := r.URL.Query().Get("start_date")
-	endDate := r.URL.Query().Get("end_date")
-
-	log.Printf("INFO: Received request with parameters: sensor_set_id='%s', start_date='%s', end_date='%s'", sensorSet, startDate, endDate)
-
-	if sensorSet == "" {
-		log.Println("ERROR: Missing sensor_set_id parameter")
-		http.Error(w, "Missing sensor_set_id parameter", http.StatusBadRequest)
-		return
-	}
-
-	if startDate == "" || endDate == "" {
-		now := time.Now()
-		endDate = now.Format("2006-01-02")
-		startDate = now.AddDate(0, 0, -1).Format("2006-01-02")
-		log.Printf("INFO: Defaulting to date range: start_date='%s', end_date='%s'", startDate, endDate)
-	}
-
-	// Create a BigQuery client
 	client, err := bigquery.NewClient(ctx, projectID)
 	if err != nil {
-		log.Printf("ERROR: Failed to create BigQuery client: %v", err)
-		http.Error(w, fmt.Sprintf("Failed to create BigQuery client: %v", err), http.StatusInternalServerError)
+		log.Printf("bigquery.NewClient: %v", err)
+		http.Error(w, "Failed to create BigQuery client", http.StatusInternalServerError)
 		return
 	}
 	defer client.Close()
 
-	// Get sensor set metadata from BigQuery
-	sensorSetData, err := getSensorSet(ctx, client, projectID, sensorSet)
+	sensorSetID := r.URL.Query().Get("sensor_set_id")
+	if sensorSetID == "" {
+		http.Error(w, "Missing sensor_set_id parameter", http.StatusBadRequest)
+		return
+	}
+
+	sensorSet, err := getSensorSet(ctx, client, sensorSetID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get sensor set data: %v", err), http.StatusInternalServerError)
+		log.Printf("getSensorSet: %v", err)
+		http.Error(w, "Failed to get sensor set metadata", http.StatusInternalServerError)
 		return
 	}
 
-	// Get weather data from Open-Meteo
-	weatherData, err := getWeatherData(sensorSetData, startDate, endDate)
+	meteoData, err := fetchWeatherData(sensorSet)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to get weather data: %v", err), http.StatusInternalServerError)
+		log.Printf("fetchWeatherData: %v", err)
+		http.Error(w, "Failed to fetch weather data", http.StatusInternalServerError)
 		return
 	}
 
-	// Insert weather data into BigQuery
-	if err := insertWeatherData(ctx, client, projectID, sensorSet, sensorSetData, weatherData); err != nil {
-		log.Printf("ERROR: Failed to insert weather data: %v", err)
-		http.Error(w, fmt.Sprintf("Failed to insert weather data: %v", err), http.StatusInternalServerError)
-		return
+	// Use a WaitGroup to run insertions concurrently and an error channel to collect errors.
+	var wg sync.WaitGroup
+	errs := make(chan error, 2)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := insertDailyData(ctx, client, meteoData, sensorSetID); err != nil {
+			errs <- fmt.Errorf("failed to insert daily data: %w", err)
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := insertHourlyData(ctx, client, meteoData, sensorSetID); err != nil {
+			errs <- fmt.Errorf("failed to insert hourly data: %w", err)
+		}
+	}()
+
+	wg.Wait()
+	close(errs)
+
+	// Check if any of the concurrent operations failed.
+	for err := range errs {
+		if err != nil {
+			log.Printf("Data insertion failed: %v", err)
+			http.Error(w, fmt.Sprintf("Data insertion failed: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
-	log.Println("INFO: Successfully fetched and stored weather data.")
-	fmt.Fprintln(w, "Successfully fetched and stored weather data.")
+	fmt.Fprintln(w, "Successfully fetched and stored daily and hourly weather data.")
 }
 
-func getSensorSet(ctx context.Context, client *bigquery.Client, projectID, sensorSetID string) (*SensorSet, error) {
-	queryString := fmt.Sprintf(
-		`SELECT latitude, longitude, timezone FROM `+"`%s.sunlight_data.sensor_set`"+` WHERE sensor_set_id = @sensor_set_id`,
-		projectID,
+// getSensorSet retrieves the latitude, longitude, and timezone for a given sensor set.
+func getSensorSet(ctx context.Context, client *bigquery.Client, sensorSetID string) (*SensorSet, error) {
+	query := client.Query(
+		`SELECT latitude, longitude, timezone FROM sunlight_dataset.sensor_sets WHERE id = @sensorSetID`,
 	)
-	log.Printf("INFO: Executing BigQuery query: %s with sensor_set_id: %s", queryString, sensorSetID)
-
-	query := client.Query(queryString)
 	query.Parameters = []bigquery.QueryParameter{
-		{Name: "sensor_set_id", Value: sensorSetID},
+		{Name: "sensorSetID", Value: sensorSetID},
 	}
 
 	it, err := query.Read(ctx)
 	if err != nil {
-		log.Printf("ERROR: BigQuery query failed: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("query.Read: %w", err)
 	}
 
 	var ss SensorSet
 	err = it.Next(&ss)
 	if err == iterator.Done {
-		err := fmt.Errorf("sensor_set_id '%s' not found in BigQuery table", sensorSetID)
-		log.Printf("ERROR: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("no sensor set found with ID: %s", sensorSetID)
 	}
 	if err != nil {
-		log.Printf("ERROR: Failed to iterate BigQuery results: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("it.Next: %w", err)
 	}
 
-	log.Printf("INFO: Found sensor set data: Latitude=%f, Longitude=%f, Timezone=%s", ss.Latitude, ss.Longitude, ss.Timezone)
 	return &ss, nil
 }
 
-func getWeatherData(sensorSet *SensorSet, startDate, endDate string) (*MeteoResponse, error) {
-	url := fmt.Sprintf(
-		"https://api.open-meteo.com/v1/forecast?latitude=%f&longitude=%f&daily=sunrise,sunset,daylight_duration,sunshine_duration,temperature_2m_max,temperature_2m_min,uv_index_max,uv_index_clear_sky_max,rain_sum,showers_sum,precipitation_sum,snowfall_sum,precipitation_hours&start_date=%s&end_date=%s",
-		sensorSet.Latitude, sensorSet.Longitude, startDate, endDate,
+// fetchWeatherData calls the Open-Meteo API to get daily and hourly weather data.
+func fetchWeatherData(ss *SensorSet) (*MeteoResponse, error) {
+	// Fetch data for yesterday.
+	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	apiURL := fmt.Sprintf(
+		"https://api.open-meteo.com/v1/forecast?latitude=%f&longitude=%f&start_date=%s&end_date=%s&timezone=%s&daily=sunrise,sunset,daylight_duration,sunshine_duration,temperature_2m_max,temperature_2m_min,uv_index_max,uv_index_clear_sky_max,rain_sum,showers_sum,precipitation_sum,snowfall_sum,precipitation_hours&hourly=temperature_2m,precipitation,relative_humidity_2m,cloud_cover,visibility,soil_temperature_0cm,soil_moisture_1_to_3cm,uv_index,uv_index_clear_sky,shortwave_radiation,direct_radiation,wind_speed_10m",
+		ss.Latitude, ss.Longitude, yesterday, yesterday, ss.Timezone,
 	)
-	log.Printf("INFO: Calling Open-Meteo API: %s", url)
 
-	resp, err := http.Get(url)
+	resp, err := http.Get(apiURL)
 	if err != nil {
-		log.Printf("ERROR: Failed to call Open-Meteo API: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("http.Get: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		err := fmt.Errorf("Open-Meteo API returned non-200 status: %d. Body: %s", resp.StatusCode, string(bodyBytes))
-		log.Printf("ERROR: %v", err)
-		return nil, err
+		return nil, fmt.Errorf("Open-Meteo API returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	var meteoResp MeteoResponse
-	if err := json.NewDecoder(resp.Body).Decode(&meteoResp); err != nil {
-		log.Printf("ERROR: Failed to decode Open-Meteo JSON response: %v", err)
-		return nil, err
+	var meteoData MeteoResponse
+	if err := json.NewDecoder(resp.Body).Decode(&meteoData); err != nil {
+		return nil, fmt.Errorf("json.Decode: %w", err)
 	}
 
-	log.Printf("INFO: Successfully received and decoded data from Open-Meteo.")
-	return &meteoResp, nil
+	return &meteoData, nil
 }
 
-func insertWeatherData(ctx context.Context, client *bigquery.Client, projectID, sensorSetID string, sensorSetData *SensorSet, weatherData *MeteoResponse) error {
-	log.Printf("INFO: Preparing to insert %d weather records into BigQuery.", len(weatherData.Daily.Time))
-	for i, t := range weatherData.Daily.Time {
-		sunrise, _ := time.Parse("2006-01-02T15:04", weatherData.Daily.Sunrise[i])
-		sunset, _ := time.Parse("2006-01-02T15:04", weatherData.Daily.Sunset[i])
-
-		q := client.Query(fmt.Sprintf(`
-			MERGE `+"`%s.sunlight_data.daily_historical_weather`"+` T
-			USING (
-				SELECT
-					CAST(@date AS DATE) as date,
-					@sunrise as sunrise,
-					@sunset as sunset,
-					@daylight_duration as daylight_duration,
-					@sunshine_duration as sunshine_duration,
-					@temperature_2m_max as temperature_2m_max,
-					@temperature_2m_min as temperature_2m_min,
-					@uv_index_max as uv_index_max,
-					@uv_index_clear_sky_max as uv_index_clear_sky_max,
-					@rain_sum as rain_sum,
-					@showers_sum as showers_sum,
-					@precipitation_sum as precipitation_sum,
-					@snowfall_sum as snowfall_sum,
-					@precipitation_hour as precipitation_hour,
-					@data_source as data_source,
-					@sensor_set_id as sensor_set_id,
-					@timezone as timezone,
-					@latitude as latitude,
-					@longitude as longitude,
-					@last_updated as last_updated
-			) S
-			ON T.date = S.date AND T.sensor_set_id = S.sensor_set_id
-			WHEN MATCHED THEN
-				UPDATE SET
-					sunrise = S.sunrise,
-					sunset = S.sunset,
-					daylight_duration = S.daylight_duration,
-					sunshine_duration = S.sunshine_duration,
-					temperature_2m_max = S.temperature_2m_max,
-					temperature_2m_min = S.temperature_2m_min,
-					uv_index_max = S.uv_index_max,
-					uv_index_clear_sky_max = S.uv_index_clear_sky_max,
-					rain_sum = S.rain_sum,
-					showers_sum = S.showers_sum,
-					precipitation_sum = S.precipitation_sum,
-					snowfall_sum = S.snowfall_sum,
-					precipitation_hour = S.precipitation_hour,
-					data_source = S.data_source,
-					timezone = S.timezone,
-					latitude = S.latitude,
-					longitude = S.longitude,
-					last_updated = S.last_updated
-			WHEN NOT MATCHED THEN
-				INSERT (date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hour, data_source, sensor_set_id, timezone, latitude, longitude, last_updated)
-				VALUES(date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hour, data_source, sensor_set_id, timezone, latitude, longitude, last_updated)
-		`, projectID))
-
-		q.Parameters = []bigquery.QueryParameter{
-			{Name: "date", Value: t},
-			{Name: "sunrise", Value: sunrise},
-			{Name: "sunset", Value: sunset},
-			{Name: "daylight_duration", Value: weatherData.Daily.DaylightDuration[i]},
-			{Name: "sunshine_duration", Value: weatherData.Daily.SunshineDuration[i]},
-			{Name: "temperature_2m_max", Value: weatherData.Daily.Temperature2mMax[i]},
-			{Name: "temperature_2m_min", Value: weatherData.Daily.Temperature2mMin[i]},
-			{Name: "uv_index_max", Value: weatherData.Daily.UvIndexMax[i]},
-			{Name: "uv_index_clear_sky_max", Value: weatherData.Daily.UvIndexClearSkyMax[i]},
-			{Name: "rain_sum", Value: weatherData.Daily.RainSum[i]},
-			{Name: "showers_sum", Value: weatherData.Daily.ShowersSum[i]},
-			{Name: "precipitation_sum", Value: weatherData.Daily.PrecipitationSum[i]},
-			{Name: "snowfall_sum", Value: weatherData.Daily.SnowfallSum[i]},
-			{Name: "precipitation_hour", Value: weatherData.Daily.PrecipitationHours[i]},
-			{Name: "data_source", Value: "open-meteo"},
-			{Name: "sensor_set_id", Value: sensorSetID},
-			{Name: "timezone", Value: sensorSetData.Timezone},
-			{Name: "latitude", Value: sensorSetData.Latitude},
-			{Name: "longitude", Value: sensorSetData.Longitude},
-			{Name: "last_updated", Value: time.Now().UTC()},
-		}
-
-		job, err := q.Run(ctx)
-		if err != nil {
-			return err
-		}
-		status, err := job.Wait(ctx)
-		if err != nil {
-			return err
-		}
-		if err := status.Err(); err != nil {
-			log.Printf("BigQuery job failed: %v", err)
-			return err
-		}
+// insertDailyData upserts the daily weather data into BigQuery.
+func insertDailyData(ctx context.Context, client *bigquery.Client, data *MeteoResponse, sensorSetID string) error {
+	if len(data.Daily.Time) == 0 {
+		log.Println("No daily data to insert.")
+		return nil
 	}
 
+	// Using MERGE for an "upsert" operation on the daily data.
+	mergeSQL := `
+	MERGE sunlight_dataset.daily_historical_weather T
+	USING (SELECT @date as date, @sensor_set_id as sensor_set_id) S
+	ON T.date = S.date AND T.sensor_set_id = S.sensor_set_id
+	WHEN MATCHED THEN
+		UPDATE SET
+			sunrise = @sunrise, sunset = @sunset, daylight_duration = @daylight_duration,
+			sunshine_duration = @sunshine_duration, temperature_2m_max = @temperature_2m_max,
+			temperature_2m_min = @temperature_2m_min, uv_index_max = @uv_index_max,
+			uv_index_clear_sky_max = @uv_index_clear_sky_max, rain_sum = @rain_sum,
+			showers_sum = @showers_sum, precipitation_sum = @precipitation_sum,
+			snowfall_sum = @snowfall_sum, precipitation_hours = @precipitation_hours,
+			last_updated = @last_updated
+	WHEN NOT MATCHED THEN
+		INSERT (date, sunrise, sunset, daylight_duration, sunshine_duration, temperature_2m_max, temperature_2m_min, uv_index_max, uv_index_clear_sky_max, rain_sum, showers_sum, precipitation_sum, snowfall_sum, precipitation_hours, sensor_set_id, timezone, latitude, longitude, data_source, last_updated)
+		VALUES (@date, @sunrise, @sunset, @daylight_duration, @sunshine_duration, @temperature_2m_max, @temperature_2m_min, @uv_index_max, @uv_index_clear_sky_max, @rain_sum, @showers_sum, @precipitation_sum, @snowfall_sum, @precipitation_hours, @sensor_set_id, @timezone, @latitude, @longitude, @data_source, @last_updated)
+	`
+	q := client.Query(mergeSQL)
+
+	sunrise, err := time.Parse(time.RFC3339, data.Daily.Sunrise[0])
+	if err != nil {
+		return fmt.Errorf("parsing sunrise: %w", err)
+	}
+	sunset, err := time.Parse(time.RFC3339, data.Daily.Sunset[0])
+	if err != nil {
+		return fmt.Errorf("parsing sunset: %w", err)
+	}
+
+	q.Parameters = []bigquery.QueryParameter{
+		{Name: "date", Value: data.Daily.Time[0]},
+		{Name: "sunrise", Value: sunrise},
+		{Name: "sunset", Value: sunset},
+		{Name: "daylight_duration", Value: data.Daily.DaylightDuration[0]},
+		{Name: "sunshine_duration", Value: data.Daily.SunshineDuration[0]},
+		{Name: "temperature_2m_max", Value: data.Daily.Temperature2mMax[0]},
+		{Name: "temperature_2m_min", Value: data.Daily.Temperature2mMin[0]},
+		{Name: "uv_index_max", Value: data.Daily.UvIndexMax[0]},
+		{Name: "uv_index_clear_sky_max", Value: data.Daily.UvIndexClearSkyMax[0]},
+		{Name: "rain_sum", Value: data.Daily.RainSum[0]},
+		{Name: "showers_sum", Value: data.Daily.ShowersSum[0]},
+		{Name: "precipitation_sum", Value: data.Daily.PrecipitationSum[0]},
+		{Name: "snowfall_sum", Value: data.Daily.SnowfallSum[0]},
+		{Name: "precipitation_hours", Value: data.Daily.PrecipitationHours[0]},
+		{Name: "sensor_set_id", Value: sensorSetID},
+		{Name: "timezone", Value: data.Timezone},
+		{Name: "latitude", Value: data.Latitude},
+		{Name: "longitude", Value: data.Longitude},
+		{Name: "data_source", Value: "open-meteo"},
+		{Name: "last_updated", Value: time.Now().UTC()},
+	}
+
+	job, err := q.Run(ctx)
+	if err != nil {
+		return fmt.Errorf("query.Run: %w", err)
+	}
+	status, err := job.Wait(ctx)
+	if err != nil {
+		return fmt.Errorf("job.Wait: %w", err)
+	}
+	if err := status.Err(); err != nil {
+		return fmt.Errorf("job failed: %w", err)
+	}
+
+	log.Println("Successfully upserted daily weather data.")
+	return nil
+}
+
+// insertHourlyData uses a streaming inserter to efficiently add hourly records to BigQuery.
+func insertHourlyData(ctx context.Context, client *bigquery.Client, data *MeteoResponse, sensorSetID string) error {
+	if len(data.Hourly.Time) == 0 {
+		log.Println("No hourly data to insert.")
+		return nil
+	}
+
+	inserter := client.Dataset("sunlight_dataset").Table("hourly_historical_weather").Inserter()
+	var records []*HourlyWeatherRecord
+
+	for i := range data.Hourly.Time {
+		ts, err := time.Parse("2006-01-02T15:04", data.Hourly.Time[i])
+		if err != nil {
+			log.Printf("Skipping hourly record due to parse error: %v", err)
+			continue
+		}
+
+		record := &HourlyWeatherRecord{
+			Time:               ts,
+			SensorSetID:        sensorSetID,
+			Temperature2m:      data.Hourly.Temperature2m[i],
+			Precipitation:      data.Hourly.Precipitation[i],
+			RelativeHumidity2m: data.Hourly.RelativeHumidity2m[i],
+			CloudCover:         data.Hourly.CloudCover[i],
+			Visibility:         data.Hourly.Visibility[i],
+			SoilTemperature0cm: data.Hourly.SoilTemperature0cm[i],
+			SoilMoisture1to3cm: data.Hourly.SoilMoisture1to3cm[i],
+			UvIndex:            data.Hourly.UvIndex[i],
+			UvIndexClearSky:    data.Hourly.UvIndexClearSky[i],
+			ShortwaveRadiation: data.Hourly.ShortwaveRadiation[i],
+			DirectRadiation:    data.Hourly.DirectRadiation[i],
+			WindSpeed10m:       data.Hourly.WindSpeed10m[i],
+			Timezone:           data.Timezone,
+			Latitude:           data.Latitude,
+			Longitude:          data.Longitude,
+			DataSource:         "open-meteo",
+			LastUpdated:        time.Now().UTC(),
+		}
+		records = append(records, record)
+	}
+
+	if err := inserter.Put(ctx, records); err != nil {
+		return fmt.Errorf("inserter.Put: %w", err)
+	}
+
+	log.Printf("Successfully inserted %d hourly weather records.", len(records))
 	return nil
 }
