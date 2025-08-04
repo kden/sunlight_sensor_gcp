@@ -61,4 +61,4 @@ jobs:
             --no-allow-unauthenticated \
             --service-account=$RUNTIME_SERVICE_ACCOUNT \
             --set-env-vars=GCP_PROJECT=${{ steps.auth.outputs.project_id }} \
-#            --verbosity=debug
+            --verbosity=debug
