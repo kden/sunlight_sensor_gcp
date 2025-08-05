@@ -53,4 +53,4 @@ jobs:
             --trigger-http \
             --allow-unauthenticated \
             --service-account=${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_SENSOR_PROXY_RUNTIME }} \
-            --set-env-vars=GCP_PROJECT=${{ steps.auth.outputs.project_id }},TOPIC_ID=sun_sensor_ingest_topic,SECRET_BEARER_TOKEN=${{ secrets.SENSOR_API_BEARER_TOKEN }}
+            --set-env-vars=GCP_PROJECT=${{ steps.auth.outputs.project_id }},TOPIC_ID=sun-sensor-ingest-topic,SECRET_BEARER_TOKEN=${{ secrets.SENSOR_API_BEARER_TOKEN }}
