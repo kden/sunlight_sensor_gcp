@@ -34,13 +34,21 @@ resource "google_project_iam_member" "bq_to_fs_weather_sa_firestore_user" {
   member  = google_service_account.bq_to_fs_weather_sa.member
 }
 
-# 3. Pub/Sub Topic to Trigger the Function
+# 3. Allow the main function deployer to act as this new runtime SA
+# This allows the GitHub Action to assign this service account during deployment.
+resource "google_service_account_iam_member" "deployer_act_as_bq_to_fs_weather" {
+  service_account_id = google_service_account.bq_to_fs_weather_sa.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.function_deployer.email}"
+}
+
+# 4. Pub/Sub Topic to Trigger the Function
 resource "google_pubsub_topic" "bq_to_fs_weather_trigger" {
   project = var.gcp_project_id
   name    = "bq-to-fs-weather-trigger"
 }
 
-# 4. Cloud Scheduler Job
+# 5. Cloud Scheduler Job
 # Runs daily to trigger the export process.
 resource "google_cloud_scheduler_job" "bq_to_fs_weather_scheduler" {
   project     = var.gcp_project_id
@@ -60,61 +68,8 @@ resource "google_cloud_scheduler_job" "bq_to_fs_weather_scheduler" {
   ]
 }
 
-# 5. Cloud Function
-# Deploys the Python code that performs the data transfer.
-resource "google_cloudfunctions2_function" "bq_to_fs_weather_exporter" {
-  project  = var.gcp_project_id
-  name     = "bq-to-fs-weather-exporter"
-  location = var.region
-
-  build_config {
-    runtime     = "python311"
-    entry_point = "export_weather_to_firestore"
-    source {
-      storage_source {
-        bucket = google_storage_bucket.bq_to_fs_weather_source_bucket.name
-        object = google_storage_bucket_object.bq_to_fs_weather_source_object.name
-      }
-    }
-  }
-
-  service_config {
-    max_instance_count    = 1
-    service_account_email = google_service_account.bq_to_fs_weather_sa.email
-    ingress_settings      = "ALLOW_ALL"
-  }
-
-  event_trigger {
-    trigger_region = var.region
-    event_type     = "google.cloud.pubsub.topic.v1.messagePublished"
-    pubsub_topic   = google_pubsub_topic.bq_to_fs_weather_trigger.id
-    retry_policy   = "RETRY_POLICY_RETRY"
-  }
-
-  depends_on = [
-    google_project_iam_member.bq_to_fs_weather_sa_bq_viewer,
-    google_project_iam_member.bq_to_fs_weather_sa_firestore_user,
-    google_project_iam_member.bq_to_fs_weather_sa_bq_job_user,
-    google_project_service.apis
-  ]
-}
-
-# 6. Cloud Storage for Function Source Code
-resource "google_storage_bucket" "bq_to_fs_weather_source_bucket" {
-  project       = var.gcp_project_id
-  name          = "${var.gcp_project_id}-bq-to-fs-weather-source"
-  location      = "US"
-  force_destroy = true
-}
-
-resource "google_storage_bucket_object" "bq_to_fs_weather_source_object" {
-  name   = "weather_export_source-${data.archive_file.weather_export_function_source.output_md5}.zip"
-  bucket = google_storage_bucket.bq_to_fs_weather_source_bucket.name
-  source = data.archive_file.weather_export_function_source.output_path
-}
-
-data "archive_file" "weather_export_function_source" {
-  type        = "zip"
-  source_dir  = "${path.module}/../functions/bq_to_firestore_daily_weather/src"
-  output_path = "${path.module}/../functions/bq_to_firestore_daily_weather/weather_export_source.zip"
+# --- Outputs ---
+output "bq_to_fs_weather_sa_email" {
+  value       = google_service_account.bq_to_fs_weather_sa.email
+  description = "The email of the runtime service account for the bq-to-fs-weather-exporter function."
 }
