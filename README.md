@@ -18,6 +18,19 @@ pytest from the root directory:
 pytest
 ```
 
+## GitHub Configuration
+
+In order to configure your GitHub actions, you will need to create some GitHub Actions secrets in your repo.
+
+<table>
+<thead>
+<tr><th>Name</th><th>Format</th><th>Description</th></tr>
+</thead>
+<tbody>
+<tr><td></td><td></td><td></td></tr>
+</tbody>
+</table>
+
 ## Licensing
 
 Licensing information is in the [LICENSE](LICENSE) and [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES) file.
