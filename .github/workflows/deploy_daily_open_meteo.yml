@@ -13,7 +13,6 @@ on:
   push:
     branches:
       - main
-      - 2_add_hourly_weather_data
     paths:
       # Only run when files in the function's directory change
       - 'functions/daily_open_meteo/**'

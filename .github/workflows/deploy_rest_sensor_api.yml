@@ -13,7 +13,6 @@ on:
   push:
     branches:
       - main
-      - 4_deploy_rest_sensor_api_as_github_action
     paths:
       # Only run when files in the function's directory change
       - 'functions/rest_sensor_api_to_pubsub/**'

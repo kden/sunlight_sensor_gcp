@@ -13,7 +13,6 @@ on:
   push:
     branches:
       - main
-      - 4_deploy_test_pattern_updater_as_github_action # Or your feature branch
     paths:
       # Only run when files in the function's directory change
       - 'functions/generate_test_pattern/**'

@@ -13,7 +13,6 @@ on:
   push:
     branches:
       - main
-      - 4_bigquery_to_firebase_sensor_deploy_with_github_action # Or your feature branch
     paths:
       # Only run when files in the function's directory change
       - 'functions/bq_to_firestore_sensors/**'
