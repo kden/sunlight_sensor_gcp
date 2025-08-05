@@ -1,0 +1,57 @@
+# .github/workflows/deploy_generate_test_pattern.yml
+#
+# Deploy the daily test pattern generator Cloud Run Function
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
+name: Deploy Test Pattern Generator Function
+
+on:
+  # Trigger the workflow on push events
+  push:
+    branches:
+      - main
+      - 4_deploy_test_pattern_updater_as_github_action # Or your feature branch
+    paths:
+      # Only run when files in the function's directory change
+      - 'functions/generate_test_pattern/**'
+      # Also run if this workflow file itself changes
+      - '.github/workflows/deploy_generate_test_pattern.yml'
+
+jobs:
+  deploy:
+    # These permissions are required for secure OIDC authentication with Google Cloud
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Deploy Gen2 Cloud Function'
+        run: |
+          gcloud functions deploy daily-test-pattern-generator \
+            --gen2 \
+            --region=us-central1 \
+            --runtime=python312 \
+            --source=./functions/generate_test_pattern/src \
+            --entry-point=generate_and_send_data \
+            --trigger-http \
+            --no-allow-unauthenticated \
+            --service-account=${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_TEST_PATTERN_RUNTIME }} \
+            --set-env-vars=SENSOR_API_URL=https://${{ secrets.SENSOR_API_DOMAIN_NAME }},BEARER_TOKEN=${{ secrets.SENSOR_API_BEARER_TOKEN }},SENSOR_ID=test_sensor
