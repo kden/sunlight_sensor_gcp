@@ -43,13 +43,4 @@ jobs:
         uses: 'google-github-actions/setup-gcloud@v2'
 
       - name: 'Deploy Gen2 Cloud Function'
-        run: >
-          gcloud functions deploy bq-to-fs-sensor-data-exporter
-          --gen2
-          --region=us-central1
-          --runtime=python311
-          --source=./functions/bq_to_firestore_sensors/src
-          --entry-point=export_sensors_to_firestore
-          --trigger-http
-          --no-allow-unauthenticated
-          --service-account=${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_BQ_TO_FS_SENSORS_RUNTIME }}
+        run: gcloud functions deploy bq-to-fs-sensor-data-exporter --gen2 --region=us-central1 --runtime=python311 --source=./functions/bq_to_firestore_sensors/src --entry-point=export_sensors_to_firestore --trigger-http --no-allow-unauthenticated --service-account=${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_BQ_TO_FS_SENSORS_RUNTIME }}
