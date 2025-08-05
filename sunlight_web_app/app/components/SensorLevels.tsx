@@ -29,6 +29,7 @@ const getTodayString = () => {
 const SensorLevels = () => {
   const [isMounted, setIsMounted] = useState(false);
   const [highlightedSensor, setHighlightedSensor] = useState<string | null>(null);
+  const [hiddenRadiationLines, setHiddenRadiationLines] = useState<Set<string>>(new Set());
   const [maxIntensity, setMaxIntensity] = useState(10000);
 
   // State for user selections
@@ -80,7 +81,22 @@ const SensorLevels = () => {
   }, [readings, sensorIds]); // Removed hourlyWeatherData dependency
 
   const handleLegendClick = (dataKey: string) => {
-    setHighlightedSensor(prev => (prev === dataKey ? null : dataKey));
+    // Check if this is a radiation line
+    if (dataKey === 'direct_radiation' || dataKey === 'shortwave_radiation') {
+      // Toggle radiation line visibility
+      setHiddenRadiationLines(prev => {
+        const newSet = new Set(prev);
+        if (newSet.has(dataKey)) {
+          newSet.delete(dataKey);
+        } else {
+          newSet.add(dataKey);
+        }
+        return newSet;
+      });
+    } else {
+      // Original sensor highlighting behavior
+      setHighlightedSensor(prev => (prev === dataKey ? null : dataKey));
+    }
   };
 
   if (!isMounted) {
@@ -124,6 +140,7 @@ const SensorLevels = () => {
           axisDomain={axisDomain}
           timezone={timezone}
           highlightedSensor={highlightedSensor}
+          hiddenRadiationLines={hiddenRadiationLines}
           onLegendClick={handleLegendClick}
           // Pass the sunrise and sunset data down to the chart.
           // We use optional chaining `?.` in case weatherData is still loading.

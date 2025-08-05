@@ -42,6 +42,7 @@ interface SensorLevelsChartProps {
   axisDomain: [number, number];
   timezone: string;
   highlightedSensor: string | null;
+  hiddenRadiationLines: Set<string>;
   onLegendClick: (dataKey: string) => void;
   sunrise: DateTime | null;
   sunset: DateTime | null;
@@ -49,12 +50,12 @@ interface SensorLevelsChartProps {
   hourlyWeatherData: HourlyWeather[];
 }
 
-// Colors for sensor data (first 6 colors)
-const sensorColors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#387908', '#d0ed57'];
-// Colors for weather data (different colors to distinguish)
+// Colors for sensor data - red to teal range, ordered for maximum contrast
+const sensorColors = ['#dc2626', '#22c55e', '#f97316', '#84cc16', '#eab308', '#059669'];
+// Colors for weather data - blue to purple range
 const weatherColors = {
-  direct_radiation: '#ff6b6b',
-  shortwave_radiation: '#4ecdc4'
+  direct_radiation: '#3b82f6',
+  shortwave_radiation: '#8b5cf6'
 };
 
 const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
@@ -64,6 +65,7 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
   axisDomain,
   timezone,
   highlightedSensor,
+  hiddenRadiationLines,
   onLegendClick,
   sunrise,
   sunset,
@@ -90,17 +92,55 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
       weatherMap.set(weather.time.toMillis(), weather);
     });
 
-    // Combine the data
+    // Sort hourly weather data by time for interpolation
+    const sortedWeatherData = [...hourlyWeatherData].sort((a, b) => a.time.toMillis() - b.time.toMillis());
+
+    // Function to find the most recent radiation data for a given timestamp
+    const findMostRecentRadiation = (timestamp: number) => {
+      // First check if we have exact match
+      const exactMatch = weatherMap.get(timestamp);
+      if (exactMatch) {
+        return {
+          direct_radiation: exactMatch.direct_radiation ?? undefined,
+          shortwave_radiation: exactMatch.shortwave_radiation ?? undefined
+        };
+      }
+
+      // Find the most recent previous reading
+      let mostRecent = null;
+      for (let i = sortedWeatherData.length - 1; i >= 0; i--) {
+        const weather = sortedWeatherData[i];
+        if (weather.time.toMillis() <= timestamp) {
+          mostRecent = weather;
+          break;
+        }
+      }
+
+      if (mostRecent) {
+        return {
+          direct_radiation: mostRecent.direct_radiation ?? undefined,
+          shortwave_radiation: mostRecent.shortwave_radiation ?? undefined
+        };
+      }
+
+      return {
+        direct_radiation: undefined,
+        shortwave_radiation: undefined
+      };
+    };
+
+    // Combine the data - each sensor reading gets the most recent radiation data
     const combined = readings.map(reading => {
-      const weather = weatherMap.get(reading.time as number);
+      const radiationData = findMostRecentRadiation(reading.time as number);
       return {
         ...reading,
-        direct_radiation: weather?.direct_radiation ?? undefined,
-        shortwave_radiation: weather?.shortwave_radiation ?? undefined,
+        direct_radiation: radiationData.direct_radiation,
+        shortwave_radiation: radiationData.shortwave_radiation,
       };
     });
 
     // Add any weather data points that don't have corresponding sensor readings
+    // (this handles cases where we have weather data but no sensor data)
     hourlyWeatherData.forEach(weather => {
       const timestamp = weather.time.toMillis();
       const existingReading = combined.find(r => r.time === timestamp);
@@ -147,7 +187,7 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => onLegendClick('direct_radiation')}
             style={{
-              opacity: highlightedSensor === null || highlightedSensor === 'direct_radiation' ? 1 : 0.4
+              opacity: hiddenRadiationLines.has('direct_radiation') ? 0.4 : 1
             }}
           >
             <div
@@ -161,7 +201,7 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => onLegendClick('shortwave_radiation')}
             style={{
-              opacity: highlightedSensor === null || highlightedSensor === 'shortwave_radiation' ? 1 : 0.4
+              opacity: hiddenRadiationLines.has('shortwave_radiation') ? 0.4 : 1
             }}
           >
             <div
@@ -271,7 +311,7 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
             stroke={weatherColors.direct_radiation}
             dot={false}
             connectNulls
-            opacity={highlightedSensor === null || highlightedSensor === 'direct_radiation' ? 1 : 0.2}
+            opacity={hiddenRadiationLines.has('direct_radiation') ? 0 : 1}
             strokeWidth={2}
           />
 
@@ -283,7 +323,7 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
             stroke={weatherColors.shortwave_radiation}
             dot={false}
             connectNulls
-            opacity={highlightedSensor === null || highlightedSensor === 'shortwave_radiation' ? 1 : 0.2}
+            opacity={hiddenRadiationLines.has('shortwave_radiation') ? 0 : 1}
             strokeWidth={2}
           />
         </LineChart>
