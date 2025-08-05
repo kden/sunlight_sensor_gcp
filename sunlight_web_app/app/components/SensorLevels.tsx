@@ -4,7 +4,7 @@
  * Contains the sensor levels line graph and associated components.
  *
  * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
- * Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+ * Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025), and Claude Sonnet 4 (2025).
  * Apache 2.0 Licensed as described in the file LICENSE
  */
 
@@ -16,6 +16,7 @@ import usePersistentState from '@/app/hooks/usePersistentState';
 import { useSensorLevelsData } from '@/app/hooks/useSensorLevelsData';
 import { useSensorSelection } from '@/app/hooks/useSensorSelection';
 import { useDailyWeather } from '@/app/hooks/useDailyWeather';
+import { useHourlyWeather } from '@/app/hooks/useHourlyWeather';
 import Toolbar from './Toolbar';
 import SensorLevelsChart from './SensorLevelsChart';
 import StatusDisplay from './StatusDisplay';
@@ -47,30 +48,36 @@ const SensorLevels = () => {
 
   // Hooks for fetching chart-specific data
   const { readings, sensorIds, hourlyTicks, axisDomain, loading, error } = useSensorLevelsData(selectedDate, selectedSensorSet, timezone);
+
   // Fetch weather data
   const { weatherData, loading: weatherLoading, error: weatherError } = useDailyWeather(selectedDate, selectedSensorSet);
 
+  // Fetch hourly weather data
+  const { hourlyWeatherData, loading: hourlyWeatherLoading, error: hourlyWeatherError } = useHourlyWeather(selectedDate, selectedSensorSet);
 
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
   // Calculate the maximum intensity from the day's readings to set the Y-axis domain.
+  // Only consider sensor data since radiation will have its own scale
   useEffect(() => {
     if (readings && readings.length > 0 && sensorIds && sensorIds.length > 0) {
-      const maxVal = readings.reduce((max, current) => {
+      // Get max from sensor data only
+      const sensorMax = readings.reduce((max, current) => {
         const readingMax = Math.max(...sensorIds.map(id => (current[id] as number) || 0));
         return Math.max(max, readingMax);
       }, 0);
+
       // If we found a max value, round it up to the nearest 1000 for a cleaner axis.
       // Otherwise, keep the default.
-      if (maxVal > 0) {
-        setMaxIntensity(Math.ceil(maxVal / 1000) * 1000);
+      if (sensorMax > 0) {
+        setMaxIntensity(Math.ceil(sensorMax / 1000) * 1000);
       } else {
         setMaxIntensity(10000); // Default if no data
       }
     }
-  }, [readings, sensorIds]);
+  }, [readings, sensorIds]); // Removed hourlyWeatherData dependency
 
   const handleLegendClick = (dataKey: string) => {
     setHighlightedSensor(prev => (prev === dataKey ? null : dataKey));
@@ -79,6 +86,11 @@ const SensorLevels = () => {
   if (!isMounted) {
     return null;
   }
+
+  // Determine if we're still loading any data
+  const isLoading = loading || hourlyWeatherLoading;
+  const hasError = error || hourlyWeatherError;
+  const combinedError = hasError ? (error || hourlyWeatherError) : null;
 
   return (
     <div>
@@ -96,15 +108,15 @@ const SensorLevels = () => {
       />
 
       <StatusDisplay
-        loading={loading}
-        error={error}
+        loading={isLoading}
+        error={combinedError}
         data={readings}
         loadingMessage={`Loading sensor data for ${selectedDate}...`}
         noDataMessage="No data found for the selected date."
       />
 
       {/* The graph only renders when all conditions are met */}
-      {!loading && !error && readings && readings.length > 0 && sensorIds && (
+      {!isLoading && !hasError && readings && readings.length > 0 && sensorIds && (
         <SensorLevelsChart
           readings={readings}
           sensorIds={sensorIds}
@@ -118,6 +130,7 @@ const SensorLevels = () => {
           sunrise={weatherData?.sunrise ?? null}
           sunset={weatherData?.sunset ?? null}
           maxIntensity={maxIntensity}
+          hourlyWeatherData={hourlyWeatherData}
         />
       )}
 

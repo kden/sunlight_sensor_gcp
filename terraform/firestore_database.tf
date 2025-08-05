@@ -50,6 +50,27 @@ resource "google_firestore_index" "sunlight_readings_index" {
   }
 }
 
+resource "google_firestore_index" "hourly_weather_index" {
+  project    = var.gcp_project_id
+  collection = "hourly_weather"
+
+  # This index applies to queries against a single collection.
+  # Use "COLLECTION_GROUP" for collection group queries.
+  query_scope = "COLLECTION"
+
+  # Define the fields and their order for the index.
+  # The order of these blocks matters.
+  fields {
+    field_path = "sensor_set_id"
+    order      = "ASCENDING"
+  }
+
+  fields {
+    field_path = "time"
+    order      = "ASCENDING"
+  }
+}
+
 resource "google_firebaserules_ruleset" "default_firestore_rules" {
   project = var.gcp_project_id
   source {
@@ -77,6 +98,10 @@ resource "google_firebaserules_ruleset" "default_firestore_rules" {
               allow write: if false; // Disallow public writes
             }
             match /daily_weather/{dailyId} {
+              allow read: if true;
+              allow write: if false; // Disallow public writes
+            }
+            match /hourly_weather/{hourlyId} {
               allow read: if true;
               allow write: if false; // Disallow public writes
             }

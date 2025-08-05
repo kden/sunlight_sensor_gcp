@@ -1,7 +1,7 @@
 /*
- * Represents a data point on the heatmap.
+ * ChartDataPoint.tsx
  *
- * Source code description.
+ * Represents a data point on the heatmap.
  *
  * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
  * Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).

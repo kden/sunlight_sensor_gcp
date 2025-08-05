@@ -2,10 +2,10 @@
  * SensorLevelsChart.tsx
  *
  * Renders a line graph of the sensor levels over time for a particular day,
- * with vertical lines indicating sunrise and sunset.
+ * with vertical lines indicating sunrise and sunset, and weather data overlay.
  *
  * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
- * Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+ * Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025), and Claude Sonnet 4 (2025).
  * Apache 2.0 Licensed as described in the file LICENSE
  */
 
@@ -17,15 +17,22 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-  ReferenceLine, // 1. Import ReferenceLine
+  ReferenceLine,
 } from 'recharts';
 import { DateTime } from 'luxon';
+import { HourlyWeather } from '@/app/types/HourlyWeather';
 
 interface Reading {
   time: number;
   [key: string]: number | string;
+}
+
+interface CombinedDataPoint {
+  time: number;
+  direct_radiation?: number;
+  shortwave_radiation?: number;
+  [key: string]: number | string | undefined;
 }
 
 interface SensorLevelsChartProps {
@@ -36,13 +43,19 @@ interface SensorLevelsChartProps {
   timezone: string;
   highlightedSensor: string | null;
   onLegendClick: (dataKey: string) => void;
-  // 2. Add sunrise and sunset to the props
   sunrise: DateTime | null;
   sunset: DateTime | null;
   maxIntensity: number;
+  hourlyWeatherData: HourlyWeather[];
 }
 
-const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#387908', '#d0ed57'];
+// Colors for sensor data (first 6 colors)
+const sensorColors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#387908', '#d0ed57'];
+// Colors for weather data (different colors to distinguish)
+const weatherColors = {
+  direct_radiation: '#ff6b6b',
+  shortwave_radiation: '#4ecdc4'
+};
 
 const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
   readings,
@@ -52,82 +65,233 @@ const SensorLevelsChart: React.FC<SensorLevelsChartProps> = ({
   timezone,
   highlightedSensor,
   onLegendClick,
-  sunrise, // 3. Destructure the new props
+  sunrise,
   sunset,
   maxIntensity,
+  hourlyWeatherData,
 }) => {
+  // Calculate max radiation values for the secondary Y-axis
+  const maxRadiation = React.useMemo(() => {
+    if (hourlyWeatherData.length === 0) return 1000;
+
+    const maxDirect = Math.max(...hourlyWeatherData.map(w => w.direct_radiation || 0));
+    const maxShortwave = Math.max(...hourlyWeatherData.map(w => w.shortwave_radiation || 0));
+    const overallMax = Math.max(maxDirect, maxShortwave);
+
+    // Round up to nearest 100 for cleaner axis
+    return overallMax > 0 ? Math.ceil(overallMax / 100) * 100 : 1000;
+  }, [hourlyWeatherData]);
+
+  // Combine sensor readings with weather data
+  const combinedData: CombinedDataPoint[] = React.useMemo(() => {
+    // Create a map of weather data by timestamp for quick lookup
+    const weatherMap = new Map<number, HourlyWeather>();
+    hourlyWeatherData.forEach(weather => {
+      weatherMap.set(weather.time.toMillis(), weather);
+    });
+
+    // Combine the data
+    const combined = readings.map(reading => {
+      const weather = weatherMap.get(reading.time as number);
+      return {
+        ...reading,
+        direct_radiation: weather?.direct_radiation ?? undefined,
+        shortwave_radiation: weather?.shortwave_radiation ?? undefined,
+      };
+    });
+
+    // Add any weather data points that don't have corresponding sensor readings
+    hourlyWeatherData.forEach(weather => {
+      const timestamp = weather.time.toMillis();
+      const existingReading = combined.find(r => r.time === timestamp);
+      if (!existingReading) {
+        combined.push({
+          time: timestamp,
+          direct_radiation: weather.direct_radiation ?? undefined,
+          shortwave_radiation: weather.shortwave_radiation ?? undefined,
+        });
+      }
+    });
+
+    // Sort by time
+    return combined.sort((a, b) => (a.time as number) - (b.time as number));
+  }, [readings, hourlyWeatherData]);
+
+  // Custom Legend Component
+  const CustomLegend = () => {
+    return (
+      <div className="mt-4">
+        {/* Sensor Legend */}
+        <div className="flex flex-wrap gap-4 mb-2">
+          {sensorIds.map((id, index) => (
+            <div
+              key={id}
+              className="flex items-center gap-2 cursor-pointer"
+              onClick={() => onLegendClick(id)}
+              style={{
+                opacity: highlightedSensor === null || highlightedSensor === id ? 1 : 0.4
+              }}
+            >
+              <div
+                className="w-3 h-0.5"
+                style={{ backgroundColor: sensorColors[index % sensorColors.length] }}
+              />
+              <span className="text-white text-sm">{id}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Weather Legend */}
+        <div className="flex flex-wrap gap-4">
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => onLegendClick('direct_radiation')}
+            style={{
+              opacity: highlightedSensor === null || highlightedSensor === 'direct_radiation' ? 1 : 0.4
+            }}
+          >
+            <div
+              className="w-3 h-0.5"
+              style={{ backgroundColor: weatherColors.direct_radiation }}
+            />
+            <span className="text-white text-sm">Direct Radiation (W/m²)</span>
+          </div>
+
+          <div
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => onLegendClick('shortwave_radiation')}
+            style={{
+              opacity: highlightedSensor === null || highlightedSensor === 'shortwave_radiation' ? 1 : 0.4
+            }}
+          >
+            <div
+              className="w-3 h-0.5"
+              style={{ backgroundColor: weatherColors.shortwave_radiation }}
+            />
+            <span className="text-white text-sm">Shortwave Radiation (W/m²)</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <LineChart data={readings}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#444" />
-        <XAxis
-          dataKey="time"
-          type="number"
-          domain={axisDomain}
-          ticks={hourlyTicks}
-          tickFormatter={(unixTime) =>
-            DateTime.fromMillis(unixTime, { zone: timezone }).toFormat('h a')
-          }
-          stroke="#ccc"
-        />
-        <YAxis stroke="#ccc" domain={[0, maxIntensity]} allowDataOverflow={true} />
-        <Tooltip
-          contentStyle={{ backgroundColor: '#333', border: '1px solid #555' }}
-          labelStyle={{ color: '#fff' }}
-          labelFormatter={(value) =>
-            DateTime.fromMillis(Number(value), { zone: timezone }).toFormat('ff')
-          }
-        />
-        <Legend
-          wrapperStyle={{ color: '#fff' }}
-          onClick={(data) => {
-            if (typeof data.dataKey === 'string') {
-              onLegendClick(data.dataKey);
+    <div>
+      <ResponsiveContainer width="100%" height={400}>
+        <LineChart data={combinedData}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+          <XAxis
+            dataKey="time"
+            type="number"
+            domain={axisDomain}
+            ticks={hourlyTicks}
+            tickFormatter={(unixTime) =>
+              DateTime.fromMillis(unixTime, { zone: timezone }).toFormat('h a')
             }
-          }}
-        />
-
-        {/* 4. Add the ReferenceLine components for sunrise and sunset */}
-        {sunrise && (
-          <ReferenceLine
-            x={sunrise.toMillis()}
-            stroke="yellow"
-            strokeDasharray="3 3"
-            label={{
-              value: 'Sunrise',
-              position: 'insideTopRight',
-              fill: 'yellow',
-              fontSize: 12,
+            stroke="#ccc"
+          />
+          <YAxis
+            yAxisId="sensors"
+            stroke="#ccc"
+            domain={[0, maxIntensity]}
+            allowDataOverflow={true}
+            label={{ value: 'Sensor Intensity', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#ccc' } }}
+          />
+          <YAxis
+            yAxisId="radiation"
+            orientation="right"
+            stroke="#ccc"
+            domain={[0, maxRadiation]}
+            allowDataOverflow={true}
+            label={{ value: 'Radiation (W/m²)', angle: 90, position: 'insideRight', style: { textAnchor: 'middle', fill: '#ccc' } }}
+          />
+          <Tooltip
+            contentStyle={{ backgroundColor: '#333', border: '1px solid #555' }}
+            labelStyle={{ color: '#fff' }}
+            labelFormatter={(value) =>
+              DateTime.fromMillis(Number(value), { zone: timezone }).toFormat('ff')
+            }
+            formatter={(value, name) => {
+              if (name === 'direct_radiation') return [`${value} W/m²`, 'Direct Radiation'];
+              if (name === 'shortwave_radiation') return [`${value} W/m²`, 'Shortwave Radiation'];
+              return [value, name];
             }}
           />
-        )}
-        {sunset && (
-          <ReferenceLine
-            x={sunset.toMillis()}
-            stroke="orange"
-            strokeDasharray="3 3"
-            label={{
-              value: 'Sunset',
-              position: 'insideTopRight',
-              fill: 'orange',
-              fontSize: 12,
-            }}
-          />
-        )}
 
-        {sensorIds.map((id, index) => (
+          {/* Sunrise and Sunset Reference Lines */}
+          {sunrise && (
+            <ReferenceLine
+              yAxisId="sensors"
+              x={sunrise.toMillis()}
+              stroke="yellow"
+              strokeDasharray="3 3"
+              label={{
+                value: 'Sunrise',
+                position: 'insideTopRight',
+                fill: 'yellow',
+                fontSize: 12,
+              }}
+            />
+          )}
+          {sunset && (
+            <ReferenceLine
+              yAxisId="sensors"
+              x={sunset.toMillis()}
+              stroke="orange"
+              strokeDasharray="3 3"
+              label={{
+                value: 'Sunset',
+                position: 'insideTopRight',
+                fill: 'orange',
+                fontSize: 12,
+              }}
+            />
+          )}
+
+          {/* Sensor Lines */}
+          {sensorIds.map((id, index) => (
+            <Line
+              key={id}
+              yAxisId="sensors"
+              type="monotone"
+              dataKey={id}
+              stroke={sensorColors[index % sensorColors.length]}
+              dot={false}
+              connectNulls
+              opacity={highlightedSensor === null || highlightedSensor === id ? 1 : 0.2}
+            />
+          ))}
+
+          {/* Weather Data Lines - using right Y-axis */}
           <Line
-            key={id}
+            key="direct_radiation"
+            yAxisId="radiation"
             type="monotone"
-            dataKey={id}
-            stroke={colors[index % colors.length]}
+            dataKey="direct_radiation"
+            stroke={weatherColors.direct_radiation}
             dot={false}
             connectNulls
-            opacity={highlightedSensor === null || highlightedSensor === id ? 1 : 0.2}
+            opacity={highlightedSensor === null || highlightedSensor === 'direct_radiation' ? 1 : 0.2}
+            strokeWidth={2}
           />
-        ))}
-      </LineChart>
-    </ResponsiveContainer>
+
+          <Line
+            key="shortwave_radiation"
+            yAxisId="radiation"
+            type="monotone"
+            dataKey="shortwave_radiation"
+            stroke={weatherColors.shortwave_radiation}
+            dot={false}
+            connectNulls
+            opacity={highlightedSensor === null || highlightedSensor === 'shortwave_radiation' ? 1 : 0.2}
+            strokeWidth={2}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+
+      {/* Custom Legend */}
+      <CustomLegend />
+    </div>
   );
 };
 

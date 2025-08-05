@@ -34,9 +34,9 @@ jest.mock('recharts', () => {
 describe('SensorHeatmapChart Component', () => {
   // --- Mock Data ---
   const mockChartData: ChartDataPoint[] = [
-    { x: 10, y: 20, z: 5000 }, // A point with data
-    { x: 30, y: 40, z: 0 },    // A point with zero intensity
-    { x: 50, y: 60, z: undefined }, // A point with no data
+    { x: 10, y: 20, z: 5000, sensor_id: "sensor_A" }, // A point with data
+    { x: 30, y: 40, z: 0, sensor_id: "sensor_B" },    // A point with zero intensity
+    { x: 50, y: 60, z: undefined, sensor_id: "sensor_C" }, // A point with no data
   ];
   const yardLength = 120;
   const yardWidth = 80;
