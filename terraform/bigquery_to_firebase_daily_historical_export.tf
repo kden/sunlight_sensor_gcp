@@ -42,13 +42,23 @@ resource "google_service_account_iam_member" "deployer_act_as_bq_to_fs_weather" 
   member             = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
-# 4. Pub/Sub Topic to Trigger the Function
-resource "google_pubsub_topic" "bq_to_fs_weather_trigger" {
-  project = var.gcp_project_id
-  name    = "bq-to-fs-weather-trigger"
+# 4. Create a dedicated Service Account for the Scheduler Job
+resource "google_service_account" "bq_to_fs_weather_invoker_sa" {
+  project      = var.gcp_project_id
+  account_id   = "bq-fs-weather-invoker-sa"
+  display_name = "Service Account for BQ to FS Weather Scheduler"
 }
 
-# 5. Cloud Scheduler Job
+# 5. Grant the Scheduler's Service Account permission to invoke the Cloud Function
+resource "google_cloud_run_service_iam_member" "allow_weather_invoker" {
+  project  = var.gcp_project_id
+  location = var.region
+  service  = "bq-to-fs-weather-exporter" # The name of the function deployed by the GitHub Action
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.bq_to_fs_weather_invoker_sa.email}"
+}
+
+# 6. Cloud Scheduler Job
 # Runs daily to trigger the export process.
 resource "google_cloud_scheduler_job" "bq_to_fs_weather_scheduler" {
   project     = var.gcp_project_id
@@ -58,13 +68,19 @@ resource "google_cloud_scheduler_job" "bq_to_fs_weather_scheduler" {
   time_zone   = "America/Chicago"
   description = "Transfers daily historical weather data from BigQuery to Firestore."
 
-  pubsub_target {
-    topic_name = google_pubsub_topic.bq_to_fs_weather_trigger.id
-    data       = base64encode("Run Weather Export")
+  http_target {
+    uri         = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-weather-exporter"
+    http_method = "POST"
+    body        = base64encode("{\"export_type\": \"both\"}") # Send a JSON body
+
+    oidc_token {
+      service_account_email = google_service_account.bq_to_fs_weather_invoker_sa.email
+      audience              = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-weather-exporter"
+    }
   }
 
   depends_on = [
-    google_project_service.apis
+    google_cloud_run_service_iam_member.allow_weather_invoker
   ]
 }
 

@@ -42,13 +42,23 @@ resource "google_service_account_iam_member" "deployer_act_as_bq_to_fs_sensors" 
   member             = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
-# 4. Pub/Sub Topic to trigger the function
-resource "google_pubsub_topic" "bq_to_firestore_sensors_trigger" {
-  project = var.gcp_project_id
-  name    = "bq-to-firebase-trigger"
+# 4. Create a dedicated Service Account for the Scheduler Job
+resource "google_service_account" "bq_to_fs_sensors_invoker_sa" {
+  project      = var.gcp_project_id
+  account_id   = "bq-fs-sensors-invoker-sa"
+  display_name = "Service Account for BQ to FS Sensors Scheduler"
 }
 
-# 5. Cloud Scheduler to run the job
+# 5. Grant the Scheduler's Service Account permission to invoke the Cloud Function
+resource "google_cloud_run_service_iam_member" "allow_sensors_invoker" {
+  project  = var.gcp_project_id
+  location = var.region
+  service  = "bq-to-fs-sensor-data-exporter" # The name of the function deployed by the GitHub Action
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.bq_to_fs_sensors_invoker_sa.email}"
+}
+
+# 6. Cloud Scheduler to run the job
 resource "google_cloud_scheduler_job" "bq_to_firestore_sensors_scheduler" {
   project     = var.gcp_project_id
   region      = var.region
@@ -57,14 +67,18 @@ resource "google_cloud_scheduler_job" "bq_to_firestore_sensors_scheduler" {
   time_zone   = "UTC"
   description = "Transfers sensor data from BigQuery to Firebase."
 
+  http_target {
+    uri         = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-sensor-data-exporter"
+    http_method = "POST"
 
-  pubsub_target {
-    topic_name = google_pubsub_topic.bq_to_firestore_sensors_trigger.id
-    data       = base64encode("Run")
+    oidc_token {
+      service_account_email = google_service_account.bq_to_fs_sensors_invoker_sa.email
+      audience              = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-sensor-data-exporter"
+    }
   }
 
   depends_on = [
-    google_project_service.apis
+    google_cloud_run_service_iam_member.allow_sensors_invoker
   ]
 }
 

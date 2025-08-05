@@ -47,7 +47,7 @@ resource "google_service_account" "daily_weather_invoker_sa" {
 # --- Grant the Service Account permission to invoke the Cloud Function ---
 # The "roles/run.invoker" role allows this service account to call the private
 # Cloud Function.
-resource "google_cloud_run_service_iam_member" "allow_weather_invoker" {
+resource "google_cloud_run_service_iam_member" "allow_open_meteo_weather_invoker" {
   project  = var.gcp_project_id
   location = var.region
   service = "daily-open-meteo-importer" # Use the hardcoded function name
@@ -102,7 +102,7 @@ resource "google_cloud_scheduler_job" "invoke_daily_weather_importer" {
   }
 
   depends_on = [
-    google_cloud_run_service_iam_member.allow_weather_invoker
+    google_cloud_run_service_iam_member.allow_open_meteo_weather_invoker
   ]
 }
 

@@ -9,14 +9,16 @@ Apache 2.0 Licensed as described in the file LICENSE
 """
 
 from datetime import timezone
+import functions_framework
 from google.cloud import bigquery, firestore
 
 DATASET_ID = "sunlight_data"
 SOURCE_TABLE_ID = "downsampled_sunlight_data"
 
-def export_sensors_to_firestore(event, context):
+@functions_framework.http
+def export_sensors_to_firestore(request):
     """
-    Triggered by a Pub/Sub message. Fetches new data from BigQuery,
+    Triggered by an HTTP request. Fetches new data from BigQuery,
     aggregates it to 15-minute intervals, and writes it to Firestore.
     """
     firestore_client = firestore.Client()
@@ -66,7 +68,7 @@ def export_sensors_to_firestore(event, context):
 
     if not rows:
         print("No new rows found in BigQuery. Exiting.")
-        return "SUCCESS"
+        return "SUCCESS", 200
 
     print(f"Found {len(rows)} new aggregated rows to process.")
 
@@ -107,4 +109,4 @@ def export_sensors_to_firestore(event, context):
         })
         print(f"Updated last processed timestamp to: {new_timestamp_str}")
 
-    return "SUCCESS"
+    return "SUCCESS", 200

@@ -8,9 +8,9 @@ Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) a
 Apache 2.0 Licensed as described in the file LICENSE
 """
 from google.cloud import bigquery, firestore
+import functions_framework
 from datetime import datetime, time
 import json
-import base64
 
 # --- Configuration ---
 # The BigQuery dataset and tables to read from.
@@ -27,20 +27,22 @@ DAILY_METADATA_DOC_ID = "bq_to_fs_daily_weather_last_run"
 HOURLY_METADATA_DOC_ID = "bq_to_fs_hourly_weather_last_run"
 
 
-def export_weather_to_firestore(event, context):
+@functions_framework.http
+def export_weather_to_firestore(request):
     """
-    Triggered by a Pub/Sub message. Fetches new historical weather data
+    Triggered by an HTTP request. Fetches new historical weather data
     from BigQuery and writes it to Firestore, handling both daily and hourly data.
     """
-    # Parse the Pub/Sub message to determine what to export
+    # Parse the request body to determine what to export
     export_type = "both"  # default
-    if event.get('data'):
+    if request.data:
         try:
-            message_data = base64.b64decode(event['data']).decode('utf-8')
+            # The body is sent as raw bytes, decode it.
+            message_data = request.data.decode('utf-8')
             message_json = json.loads(message_data)
             export_type = message_json.get('export_type', 'both')
-        except:
-            print("Could not parse Pub/Sub message, defaulting to export both daily and hourly")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            print("Could not parse request body, defaulting to export both daily and hourly")
 
     firestore_client = firestore.Client()
     bigquery_client = bigquery.Client()
@@ -49,30 +51,35 @@ def export_weather_to_firestore(event, context):
     print(f"Cloud Function triggered for project: {project_id}, export_type: {export_type}")
 
     success_count = 0
+    results = []
 
     # Export daily data
     if export_type in ["both", "daily"]:
         try:
             result = export_daily_weather(firestore_client, bigquery_client, project_id)
-            if result == "SUCCESS":
+            results.append(f"Daily: {result}")
+            if "SUCCESS" in result:
                 success_count += 1
         except Exception as e:
             print(f"Error exporting daily weather data: {e}")
+            results.append(f"Daily: FAILED with {e}")
 
     # Export hourly data
     if export_type in ["both", "hourly"]:
         try:
             result = export_hourly_weather(firestore_client, bigquery_client, project_id)
-            if result == "SUCCESS":
+            results.append(f"Hourly: {result}")
+            if "SUCCESS" in result:
                 success_count += 1
         except Exception as e:
             print(f"Error exporting hourly weather data: {e}")
+            results.append(f"Hourly: FAILED with {e}")
 
     expected_exports = 1 if export_type in ["daily", "hourly"] else 2
     if success_count == expected_exports:
-        return "SUCCESS"
+        return f"SUCCESS: {'; '.join(results)}", 200
     else:
-        return f"PARTIAL_SUCCESS: {success_count}/{expected_exports} exports completed"
+        return f"PARTIAL_SUCCESS: {success_count}/{expected_exports} exports completed. Details: {'; '.join(results)}", 500
 
 
 def export_daily_weather(firestore_client, bigquery_client, project_id):
@@ -110,7 +117,7 @@ def export_daily_weather(firestore_client, bigquery_client, project_id):
 
     if not rows:
         print("No new daily weather data found in BigQuery.")
-        return "SUCCESS"
+        return "SUCCESS: No new data."
 
     print(f"Found {len(rows)} new daily rows to process.")
 
@@ -175,7 +182,7 @@ def export_daily_weather(firestore_client, bigquery_client, project_id):
         })
         print(f"Updated daily last processed date to: {new_date_str}")
 
-    return "SUCCESS"
+    return f"SUCCESS: Processed {len(rows)} rows."
 
 
 def export_hourly_weather(firestore_client, bigquery_client, project_id):
@@ -214,7 +221,7 @@ def export_hourly_weather(firestore_client, bigquery_client, project_id):
 
     if not rows:
         print("No new hourly weather data found in BigQuery.")
-        return "SUCCESS"
+        return "SUCCESS: No new data."
 
     print(f"Found {len(rows)} new hourly rows to process.")
 
@@ -287,4 +294,4 @@ def export_hourly_weather(firestore_client, bigquery_client, project_id):
         })
         print(f"Updated hourly last processed timestamp to: {new_timestamp_str}")
 
-    return "SUCCESS"
+    return f"SUCCESS: Processed {len(rows)} rows."
