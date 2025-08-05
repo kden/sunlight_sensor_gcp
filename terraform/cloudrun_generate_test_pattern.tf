@@ -15,6 +15,12 @@ data "archive_file" "generate_test_pattern_source_zip" {
   ]
 }
 
+variable "secret_bearer_token" {
+  type        = string
+  description = "The secret bearer token for authenticating requests."
+  sensitive   = true # Marks the variable as sensitive to hide it in logs
+}
+
 # --- Upload the Zipped Python Source Code to the GCS Bucket ---
 resource "google_storage_bucket_object" "generate_test_pattern_source_archive" {
   name   = "generate_test_pattern_source.zip#${data.archive_file.generate_test_pattern_source_zip.output_md5}"

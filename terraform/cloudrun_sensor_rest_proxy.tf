@@ -12,81 +12,41 @@ variable "sensor_target_api_domain_name" {
   description = "The custom domain to use, e.g., 'api.yourdomain.com'."
 }
 
-variable "secret_bearer_token" {
-  type        = string
-  description = "The secret bearer token for authenticating requests."
-  sensitive   = true # Marks the variable as sensitive to hide it in logs
-}
-
-
-# --- Create a GCS Bucket to Store the Service's Source Code ---
-resource "google_storage_bucket" "cloudrun_function_source_shared_bucket" {
+# --- Create a dedicated Service Account for the REST Proxy Function Runtime ---
+resource "google_service_account" "rest_proxy_runtime_sa" {
   project      = var.gcp_project_id
-  name         = "${var.gcp_project_id}-cloudrun-source"
-  location     = var.region
-  force_destroy = true
-  uniform_bucket_level_access = true
+  account_id   = "rest-proxy-runtime-sa"
+  display_name = "Runtime Service Account for REST to Pub/Sub Proxy"
 }
 
-data "archive_file" "rest_sensor_api_to_pubsub_source_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/../functions/rest_sensor_api_to_pubsub/src"
-  output_path = "${path.module}/../.tmp/rest_sensor_api_to_pubsub_source.zip"
+# --- Grant the new runtime SA permission to publish to Pub/Sub ---
+resource "google_project_iam_member" "rest_proxy_runtime_pubsub_publisher" {
+  project = var.gcp_project_id
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:${google_service_account.rest_proxy_runtime_sa.email}"
 }
 
-# --- Upload the Zipped Source Code to the GCS Bucket ---
-resource "google_storage_bucket_object" "source_archive" {
-  name   = "rest_sensor_api_to_pubsub_source.zip#${data.archive_file.rest_sensor_api_to_pubsub_source_zip.output_md5}"
-  bucket = google_storage_bucket.cloudrun_function_source_shared_bucket.name
-  source = data.archive_file.rest_sensor_api_to_pubsub_source_zip.output_path
+# --- Allow the main function deployer to act as this new runtime SA ---
+# This allows the GitHub Action to assign this service account during deployment.
+resource "google_service_account_iam_member" "deployer_act_as_rest_proxy_runtime" {
+  service_account_id = google_service_account.rest_proxy_runtime_sa.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
-# --- 1. Define the Cloud Function (2nd Gen) ---
-# We revert to this resource as it correctly handles building from source.
-resource "google_cloudfunctions2_function" "proxy_function" {
-  project  = var.gcp_project_id
-  name     = "rest-to-pubsub-proxy-function"
-  location = var.region
-
-  # Configuration for building the function from source
-  build_config {
-    runtime     = "python311"
-    entry_point = "proxy_to_pubsub"
-    source {
-      storage_source {
-        bucket = google_storage_bucket.cloudrun_function_source_shared_bucket.name
-        object = google_storage_bucket_object.source_archive.name
-      }
-    }
-  }
-
-  # Configuration for the running service
-  service_config {
-    max_instance_count = 1
-    available_memory   = "256Mi"
-    timeout_seconds    = 60
-    # Set environment variables for the function
-    environment_variables = {
-      "GCP_PROJECT"         = var.gcp_project_id
-      "TOPIC_ID"            = google_pubsub_topic.sun_sensor_ingest.name
-      "SECRET_BEARER_TOKEN" = var.secret_bearer_token
-    }
-  }
-}
-
-
-# --- 2. Allow Public (Unauthenticated) Access to the Cloud Function ---
+# --- Allow Public (Unauthenticated) Access to the Cloud Function ---
 # This makes the function's default URL publicly accessible by targeting the underlying Cloud Run service.
 resource "google_cloud_run_service_iam_member" "allow_public" {
-  project  = google_cloudfunctions2_function.proxy_function.project
-  location = google_cloudfunctions2_function.proxy_function.location
-  service  = google_cloudfunctions2_function.proxy_function.name
+  project  = var.gcp_project_id
+  location = var.region
+  # The service name is determined by the function name deployed via the GitHub Action
+  service  = "rest-to-pubsub-proxy-function"
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
 
-# --- 3. Map Your Custom Domain to the underlying Cloud Run service ---
+# --- Map Your Custom Domain to the underlying Cloud Run service ---
 # This resource handles the domain mapping and SSL certificate provisioning for free.
 resource "google_cloud_run_domain_mapping" "custom_domain_map" {
   project  = var.gcp_project_id
@@ -99,7 +59,7 @@ resource "google_cloud_run_domain_mapping" "custom_domain_map" {
 
   spec {
     # Point the domain to the Cloud Function's underlying service name
-    route_name = google_cloudfunctions2_function.proxy_function.name
+    route_name = "rest-to-pubsub-proxy-function"
   }
 }
 
@@ -109,7 +69,12 @@ output "dns_records_for_domain_mapping" {
   description = "The DNS records you need to add to your domain registrar to verify ownership and point the domain to Cloud Run."
 }
 
+output "rest_proxy_runtime_sa_email" {
+  value       = google_service_account.rest_proxy_runtime_sa.email
+  description = "The email of the runtime service account for the REST Proxy function."
+}
+
 output "sensor_rest_proxy_function_default_url" {
-  value       = google_cloudfunctions2_function.proxy_function.service_config[0].uri
-  description = "The default URL of the deployed Cloud Function."
+  value       = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/rest-to-pubsub-proxy-function"
+  description = "The default URL of the deployed REST to Pub/Sub Proxy Function."
 }
