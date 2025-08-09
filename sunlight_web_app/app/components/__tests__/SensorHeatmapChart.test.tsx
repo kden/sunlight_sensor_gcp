@@ -14,24 +14,53 @@ import '@testing-library/jest-dom';
 import SensorHeatmapChart from '../SensorHeatmapChart';
 import { ChartDataPoint } from "@/app/types/ChartDataPoint";
 
+// --- Canvas Mocking ---
+// JSDOM does not implement the canvas API. We need to provide a mock
+// to prevent errors when the component tries to generate the heatmap image.
+beforeAll(() => {
+  // Mock getContext to return a dummy context object
+  Object.defineProperty(window.HTMLCanvasElement.prototype, 'getContext', {
+    writable: true,
+    value: (contextId: string) => {
+      if (contextId === '2d') {
+        return {
+          createImageData: (width: number, height: number) => ({
+            data: new Uint8ClampedArray(width * height * 4),
+          }),
+          putImageData: jest.fn(),
+        };
+      }
+      return null;
+    },
+  });
+
+  // Mock toDataURL to return a dummy image string
+  Object.defineProperty(window.HTMLCanvasElement.prototype, 'toDataURL', {
+    writable: true,
+    value: () => 'data:image/png;base64,dummy-image-data',
+  });
+});
+
 describe('SensorHeatmapChart Component', () => {
   // --- Mock Data ---
   const mockChartData: ChartDataPoint[] = [
-    { x: 10, y: 20, z: 5000, sensor_id: "sensor_A" }, // A point with data
-    { x: 30, y: 40, z: 0, sensor_id: "sensor_B" },    // A point with zero intensity
-    { x: 50, y: 60, z: undefined, sensor_id: "sensor_C" }, // A point with no data
+    { x: 10, y: 20, z: 5000, sensor_id: "sensor_A" },
+    { x: 30, y: 40, z: 0, sensor_id: "sensor_B" },
+    { x: 50, y: 60, z: undefined, sensor_id: "sensor_C" }, // This sensor should not be rendered as a circle
   ];
-  const yardLength = 120;
-  const yardWidth = 80;
+  const yardLength = 133;
+  const yardWidth = 33;
   const maxIntensity = 10000;
 
-  // This will hold the rendered component's container for tests that need it.
-  let container: HTMLElement;
+  // --- Chart Layout Constants (from component) ---
+  // These must match the constants in SensorHeatmapChart.tsx for tests to be accurate.
+  const marginLeft = 15;
+  const marginRight = 5;
+  const marginTop = 5;
+  const marginBottom = 8;
 
-  // This block runs before each test, rendering the component once
-  // and making its container available to all tests in this suite.
-  beforeEach(() => {
-    const renderResult = render(
+  it('should render the chart container and axis titles', () => {
+    render(
       <SensorHeatmapChart
         chartData={mockChartData}
         yardLength={yardLength}
@@ -39,107 +68,119 @@ describe('SensorHeatmapChart Component', () => {
         maxIntensity={maxIntensity}
       />
     );
-    container = renderResult.container;
-  });
-
-  it('should render the chart container and axis labels', () => {
     expect(screen.getByText('Yard Length (feet)')).toBeInTheDocument();
     expect(screen.getByText('Yard Width (feet)')).toBeInTheDocument();
   });
 
   it('should render the SVG container with correct viewBox', () => {
+    const { container } = render(
+      <SensorHeatmapChart
+        chartData={mockChartData}
+        yardLength={yardLength}
+        yardWidth={yardWidth}
+        maxIntensity={maxIntensity}
+      />
+    );
     const svg = container.querySelector('svg');
+    const totalWidth = yardLength + marginLeft + marginRight;
+    const totalHeight = yardWidth + marginTop + marginBottom;
     expect(svg).toBeInTheDocument();
-    expect(svg).toHaveAttribute('viewBox', `0 0 ${yardLength} ${yardWidth}`);
+    expect(svg).toHaveAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
   });
 
-  it('should render heatmap grid cells covering the entire area', () => {
-    const heatmapRects = container.querySelectorAll('rect:not([data-testid])');
-    // Should have one rect for each 1x1 foot square
-    const expectedCells = yardLength * yardWidth;
-    expect(heatmapRects).toHaveLength(expectedCells);
-
-    // Check that cells are 1x1 foot squares
-    const firstRect = heatmapRects[0];
-    expect(firstRect).toHaveAttribute('width', '1');
-    expect(firstRect).toHaveAttribute('height', '1');
+  it('should render the heatmap as a single image when data is present', () => {
+    const { container } = render(
+      <SensorHeatmapChart
+        chartData={mockChartData}
+        yardLength={yardLength}
+        yardWidth={yardWidth}
+        maxIntensity={maxIntensity}
+      />
+    );
+    const image = container.querySelector('image');
+    expect(image).toBeInTheDocument();
+    expect(image).toHaveAttribute('href', 'data:image/png;base64,dummy-image-data');
+    expect(image).toHaveAttribute('width', String(yardLength));
+    expect(image).toHaveAttribute('height', String(yardWidth));
+    expect(image).toHaveStyle('image-rendering: pixelated');
   });
 
-  it('should render sensor circles with hot pink stroke', () => {
+  it('should render sensor circles correctly', () => {
+    const { container } = render(
+      <SensorHeatmapChart
+        chartData={mockChartData}
+        yardLength={yardLength}
+        yardWidth={yardWidth}
+        maxIntensity={maxIntensity}
+      />
+    );
     const sensorCircles = container.querySelectorAll('circle');
-    // Should only render circles for sensors with data (filtering out undefined z values)
     const sensorsWithData = mockChartData.filter(d => d.z !== undefined);
     expect(sensorCircles).toHaveLength(sensorsWithData.length);
 
-    // Check that sensor circles have hot pink stroke
-    sensorCircles.forEach(circle => {
+    sensorCircles.forEach((circle, index) => {
+      const sensor = sensorsWithData[index];
       expect(circle).toHaveAttribute('stroke', '#ec4899');
-      expect(circle).toHaveAttribute('fill', 'none');
+      // The fill is 'transparent' to make the entire area hoverable, not 'none'.
+      expect(circle).toHaveAttribute('fill', 'transparent');
+      // Positions should be offset by the margins.
+      expect(circle).toHaveAttribute('cx', String(marginLeft + sensor.x));
+      expect(circle).toHaveAttribute('cy', String(marginTop + sensor.y));
     });
   });
 
-  it('should position sensor circles correctly', () => {
-    const sensorCircles = container.querySelectorAll('circle');
-    const sensorsWithData = mockChartData.filter(d => d.z !== undefined);
-
-    sensorsWithData.forEach((sensor, index) => {
-      const circle = sensorCircles[index];
-      expect(circle).toHaveAttribute('cx', sensor.x.toString());
-      expect(circle).toHaveAttribute('cy', sensor.y.toString());
-    });
-  });
-
-  it('should render grid lines at 10-foot intervals', () => {
-    const lines = container.querySelectorAll('line');
+  it('should render grid lines with correct styling', () => {
+    const { container } = render(
+      <SensorHeatmapChart
+        chartData={mockChartData}
+        yardLength={yardLength}
+        yardWidth={yardWidth}
+        maxIntensity={maxIntensity}
+      />
+    );
+    const lines = container.querySelectorAll('g[clip-path="url(#heatmapClip)"] > line');
     const expectedVerticalLines = Math.floor(yardLength / 10) + 1;
     const expectedHorizontalLines = Math.floor(yardWidth / 10) + 1;
-    const totalExpectedLines = expectedVerticalLines + expectedHorizontalLines;
+    expect(lines.length).toBe(expectedVerticalLines + expectedHorizontalLines);
 
-    expect(lines.length).toBeGreaterThanOrEqual(totalExpectedLines);
-
-    // Check that lines have proper stroke styling
     lines.forEach(line => {
-      expect(line).toHaveAttribute('stroke', '#666');
-      expect(line).toHaveAttribute('stroke-dasharray', '0.5 0.5');
+      expect(line).toHaveAttribute('stroke', 'rgb(100, 116, 139)');
+      expect(line).toHaveAttribute('stroke-dasharray', '1 1');
     });
   });
 
   it('should render axis tick labels', () => {
-    // Check for some expected X-axis labels (using getAllByText since labels can appear on both axes)
-    expect(screen.getAllByText('0')).toHaveLength(2); // One for X-axis, one for Y-axis
-    expect(screen.getAllByText('10').length).toBeGreaterThanOrEqual(1); // At least one "10" label
-    expect(screen.getAllByText('20').length).toBeGreaterThanOrEqual(1); // At least one "20" label
-
-    // Check that we have text elements for axis labels
-    const textElements = container.querySelectorAll('text');
-    const textContents = Array.from(textElements).map(el => el.textContent);
-    expect(textContents).toContain('10');
-    expect(textContents).toContain('20');
+    render(
+      <SensorHeatmapChart
+        chartData={mockChartData}
+        yardLength={yardLength}
+        yardWidth={yardWidth}
+        maxIntensity={maxIntensity}
+      />
+    );
+    // Check for some expected labels. Use getAllByText for labels that might appear on both axes.
+    expect(screen.getAllByText('0')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('10')[0]).toBeInTheDocument();
+    expect(screen.getByText('100')).toBeInTheDocument(); // '100' is unique to X-axis
+    expect(screen.getByText('33')).toBeInTheDocument(); // '33' is unique to Y-axis
   });
 
-  it('should apply correct colors to heatmap cells based on interpolated values', () => {
-    const heatmapRects = container.querySelectorAll('rect:not([data-testid])');
-
-    // Check that all rectangles have fill colors (not empty)
-    heatmapRects.forEach(rect => {
-      const fill = rect.getAttribute('fill');
-      expect(fill).toBeTruthy();
-      expect(fill).toMatch(/^rgb\(\d+, \d+, \d+\)$/); // Should be RGB format
-    });
-  });
-
-  it('should render legend with correct elements', () => {
+  it('should render the legend correctly', () => {
+    render(
+      <SensorHeatmapChart
+        chartData={mockChartData}
+        yardLength={yardLength}
+        yardWidth={yardWidth}
+        maxIntensity={maxIntensity}
+      />
+    );
     expect(screen.getByText('Sensor Locations')).toBeInTheDocument();
     expect(screen.getByText('Low Intensity')).toBeInTheDocument();
     expect(screen.getByText('High Intensity')).toBeInTheDocument();
-
-    // Check legend color indicators
-    const legendElements = container.querySelectorAll('.bg-gray-800, .bg-yellow-200, .border-pink-500');
-    expect(legendElements.length).toBeGreaterThanOrEqual(3);
   });
 
   it('should handle empty chart data gracefully', () => {
-    const { container: emptyContainer } = render(
+    const { container } = render(
       <SensorHeatmapChart
         chartData={[]}
         yardLength={yardLength}
@@ -147,44 +188,36 @@ describe('SensorHeatmapChart Component', () => {
         maxIntensity={maxIntensity}
       />
     );
-
     // Should still render the basic structure
-    const svg = emptyContainer.querySelector('svg');
-    expect(svg).toBeInTheDocument();
-
-    // Should have no heatmap cells when no data
-    const heatmapRects = emptyContainer.querySelectorAll('rect:not([data-testid])');
-    expect(heatmapRects).toHaveLength(0);
-
-    // Should have no sensor circles
-    const sensorCircles = emptyContainer.querySelectorAll('circle');
-    expect(sensorCircles).toHaveLength(0);
+    expect(container.querySelector('svg')).toBeInTheDocument();
+    // Should NOT render the heatmap image or sensor circles
+    expect(container.querySelector('image')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('circle').length).toBe(0);
   });
 
-  it('should handle sensors with no intensity data', () => {
-    const dataWithUndefined: ChartDataPoint[] = [
+  it('should handle sensors with null or undefined intensity data', () => {
+    const dataWithInvalidZ: ChartDataPoint[] = [
       { x: 10, y: 20, z: undefined, sensor_id: "sensor_undefined" },
       { x: 30, y: 40, z: null as any, sensor_id: "sensor_null" },
     ];
 
-    const { container: testContainer } = render(
+    const { container } = render(
       <SensorHeatmapChart
-        chartData={dataWithUndefined}
+        chartData={dataWithInvalidZ}
         yardLength={50}
         yardWidth={50}
         maxIntensity={maxIntensity}
       />
     );
 
-    // The component filters out sensors with undefined z values, but null is treated as 0
-    // So we should expect 1 circle for the null sensor (which gets treated as valid data)
-    const sensorCircles = testContainer.querySelectorAll('circle');
-    expect(sensorCircles).toHaveLength(1);
+    // The heatmap generation filters out both `null` and `undefined` `z` values.
+    // If no valid sensors remain, no image should be rendered.
+    expect(container.querySelector('image')).not.toBeInTheDocument();
 
-    // Looking at the heatmap generation logic, it filters for validSensors first:
-    // const validSensors = chartData.filter(sensor => sensor.z !== undefined && sensor.z !== null);
-    // If there are no validSensors, it returns an empty array, so no heatmap cells
-    const heatmapRects = testContainer.querySelectorAll('rect:not([data-testid])');
-    expect(heatmapRects.length).toBe(0); // No heatmap cells since null values are also filtered out in heatmap generation
+    // The sensor circle rendering filters out only `undefined` `z` values.
+    // So, the sensor with `z: null` should still be rendered as a circle.
+    const circles = container.querySelectorAll('circle');
+    expect(circles).toHaveLength(1);
+    expect(circles[0]).toHaveAttribute('cx', String(marginLeft + 30));
   });
 });
