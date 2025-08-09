@@ -85,111 +85,170 @@ const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yard
         return `rgb(${r}, ${g}, ${b})`;
     };
 
+    // Chart layout constants
+    const marginLeft = 15;
+    const marginBottom = 8;
+    const marginTop = 5;
+    const marginRight = 5;
+    const totalWidth = yardLength + marginLeft + marginRight;
+    const totalHeight = yardWidth + marginTop + marginBottom;
+
+    // Constants for axis styling
+    const AXIS_TICK_LENGTH = 1;
+    const AXIS_LABEL_OFFSET = 0.5; // Adjust this to change space between tick and label
+    const AXIS_TICK_WIDTH = 0.2; // Adjust this to change tick thickness
+
+    // Constants for font styling
+    const AXIS_LABEL_FONT_SIZE = 2; // Adjust for axis number label size
+    const AXIS_TITLE_FONT_SIZE = 2; // Adjust for axis title size
+
     return (
         <div className="w-full">
-            <div className="w-full relative bg-gray-100 border border-gray-300"
-                 style={{aspectRatio: `${yardLength}/${yardWidth}`, minHeight: '200px'}}>
-                <svg width="100%" height="100%" viewBox={`0 0 ${yardLength} ${yardWidth}`}>
+            <div className="w-full relative bg-slate-800 overflow-hidden"
+                 style={{aspectRatio: `${totalWidth}/${totalHeight}`, minHeight: '300px'}}>
+                <svg width="100%" height="100%" viewBox={`0 0 ${totalWidth} ${totalHeight}`} className="bg-slate-900">
+                    <defs>
+                        {/* Define a clipping path for the heatmap area */}
+                        <clipPath id="heatmapClip">
+                            <rect x={marginLeft} y={marginTop} width={yardLength} height={yardWidth} />
+                        </clipPath>
+                    </defs>
+
+                    {/* Background for the chart area */}
+                    <rect
+                        x={marginLeft}
+                        y={marginTop}
+                        width={yardLength}
+                        height={yardWidth}
+                        fill="rgb(30, 41, 59)"
+                        stroke="rgb(71, 85, 105)"
+                        strokeWidth="0.5"
+                    />
+
                     {/* Render heatmap grid */}
-                    {heatmapGrid.map((cell, index) => (
-                        <rect
-                            key={index}
-                            x={cell.x}
-                            y={cell.y}
-                            width={1}
-                            height={1}
-                            fill={calculateFillColor(cell.value)}
-                            stroke="none"
-                        />
-                    ))}
-
-                    {/* Render grid lines */}
-                    {/* Vertical lines */}
-                    {Array.from({length: Math.floor(yardLength/10) + 1}, (_, i) => i * 10)
-                        .filter(x => x <= yardLength)
-                        .map(x => (
-                            <line
-                                key={`v-${x}`}
-                                x1={x}
-                                y1={0}
-                                x2={x}
-                                y2={yardWidth}
-                                stroke="#666"
-                                strokeWidth={0.2}
-                                strokeDasharray="0.5 0.5"
+                    <g clipPath="url(#heatmapClip)">
+                        {heatmapGrid.map((cell, index) => (
+                            <rect
+                                key={index}
+                                x={marginLeft + cell.x}
+                                y={marginTop + cell.y}
+                                width={1}
+                                height={1}
+                                fill={calculateFillColor(cell.value)}
+                                stroke="none"
                             />
                         ))}
 
-                    {/* Horizontal lines */}
-                    {Array.from({length: Math.floor(yardWidth/10) + 1}, (_, i) => i * 10)
-                        .filter(y => y <= yardWidth)
-                        .map(y => (
-                            <line
-                                key={`h-${y}`}
-                                x1={0}
-                                y1={y}
-                                x2={yardLength}
-                                y2={y}
-                                stroke="#666"
-                                strokeWidth={0.2}
-                                strokeDasharray="0.5 0.5"
+                        {/* Render grid lines */}
+                        {/* Vertical lines */}
+                        {Array.from({length: Math.floor(yardLength/10) + 1}, (_, i) => i * 10)
+                            .filter(x => x <= yardLength)
+                            .map(x => (
+                                <line
+                                    key={`v-${x}`}
+                                    x1={marginLeft + x}
+                                    y1={marginTop}
+                                    x2={marginLeft + x}
+                                    y2={marginTop + yardWidth}
+                                    stroke="rgb(100, 116, 139)"
+                                    strokeWidth={0.3}
+                                    strokeDasharray="1 1"
+                                />
+                            ))}
+
+                        {/* Horizontal lines */}
+                        {Array.from({length: Math.floor(yardWidth/10) + 1}, (_, i) => i * 10)
+                            .filter(y => y <= yardWidth)
+                            .map(y => (
+                                <line
+                                    key={`h-${y}`}
+                                    x1={marginLeft}
+                                    y1={marginTop + y}
+                                    x2={marginLeft + yardLength}
+                                    y2={marginTop + y}
+                                    stroke="rgb(100, 116, 139)"
+                                    strokeWidth={0.3}
+                                    strokeDasharray="1 1"
+                                />
+                            ))}
+
+                        {/* Render sensor locations */}
+                        {chartData.filter(d => d.z !== undefined).map((sensor, index) => (
+                            <circle
+                                key={index}
+                                cx={marginLeft + sensor.x}
+                                cy={marginTop + sensor.y}
+                                r={2}
+                                fill="transparent"
+                                stroke="#ec4899"
+                                strokeWidth={0.8}
+                                onMouseEnter={() => setHoveredSensor(sensor)}
+                                onMouseLeave={() => setHoveredSensor(null)}
+                                style={{cursor: 'pointer'}}
                             />
                         ))}
+                    </g>
 
-                    {/* Render sensor locations */}
-                    {chartData.filter(d => d.z !== undefined).map((sensor, index) => (
-                        <circle
-                            key={index}
-                            cx={sensor.x}
-                            cy={sensor.y}
-                            r={2}
-                            fill="none"
-                            stroke="#ec4899"
-                            strokeWidth={0.8}
-                            onMouseEnter={() => setHoveredSensor(sensor)}
-                            onMouseLeave={() => setHoveredSensor(null)}
-                            style={{cursor: 'pointer'}}
-                        />
-                    ))}
-
-                    {/* Axis labels */}
-                    <g fontSize="3" fill="#666">
+                    {/* Axis labels and ticks */}
+                    <g fontSize={AXIS_LABEL_FONT_SIZE} fill="rgb(203, 213, 225)">
                         {/* X-axis labels */}
                         {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 133]
                             .filter(x => x <= yardLength)
                             .map(x => (
-                                <text
-                                    key={`x-label-${x}`}
-                                    x={x}
-                                    y={yardWidth + 2}
-                                    textAnchor="middle"
-                                    dominantBaseline="hanging"
-                                >
-                                    {x}
-                                </text>
+                                <g key={`x-label-${x}`}>
+                                    {/* Tick mark */}
+                                    <line
+                                        x1={marginLeft + x}
+                                        y1={marginTop + yardWidth}
+                                        x2={marginLeft + x}
+                                        y2={marginTop + yardWidth + AXIS_TICK_LENGTH}
+                                        stroke="rgb(203, 213, 225)"
+                                        strokeWidth={AXIS_TICK_WIDTH}
+                                    />
+                                    {/* Label */}
+                                    <text
+                                        x={marginLeft + x}
+                                        y={marginTop + yardWidth + AXIS_TICK_LENGTH + AXIS_LABEL_OFFSET}
+                                        textAnchor="middle"
+                                        dominantBaseline="hanging"
+                                    >
+                                        {x}
+                                    </text>
+                                </g>
                             ))}
 
                         {/* Y-axis labels */}
                         {[0, 10, 20, 33]
                             .filter(y => y <= yardWidth)
                             .map(y => (
-                                <text
-                                    key={`y-label-${y}`}
-                                    x={-1}
-                                    y={yardWidth - y}
-                                    textAnchor="end"
-                                    dominantBaseline="middle"
-                                >
-                                    {y}
-                                </text>
+                                <g key={`y-label-${y}`}>
+                                    {/* Tick mark */}
+                                    <line
+                                        x1={marginLeft - AXIS_TICK_LENGTH}
+                                        y1={marginTop + yardWidth - y}
+                                        x2={marginLeft}
+                                        y2={marginTop + yardWidth - y}
+                                        stroke="rgb(203, 213, 225)"
+                                        strokeWidth={AXIS_TICK_WIDTH}
+                                    />
+                                    {/* Label */}
+                                    <text
+                                        x={marginLeft - AXIS_TICK_LENGTH - AXIS_LABEL_OFFSET}
+                                        y={marginTop + yardWidth - y}
+                                        textAnchor="end"
+                                        dominantBaseline="middle"
+                                    >
+                                        {y}
+                                    </text>
+                                </g>
                             ))}
                     </g>
 
                     {/* Axis titles */}
-                    <g fontSize="4" fill="#333" fontWeight="bold">
+                    <g fontSize={AXIS_TITLE_FONT_SIZE} fill="rgb(226, 232, 240)" fontWeight="normal">
                         <text
-                            x={yardLength / 2}
-                            y={yardWidth + 8}
+                            x={marginLeft + yardLength / 2}
+                            y={totalHeight - 3}
                             textAnchor="middle"
                             dominantBaseline="hanging"
                         >
@@ -197,11 +256,11 @@ const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yard
                         </text>
 
                         <text
-                            x={-8}
-                            y={yardWidth / 2}
+                            x={8}
+                            y={marginTop + yardWidth / 2}
                             textAnchor="middle"
                             dominantBaseline="middle"
-                            transform={`rotate(-90 -8 ${yardWidth / 2})`}
+                            transform={`rotate(-90 8 ${marginTop + yardWidth / 2})`}
                         >
                             Yard Width (feet)
                         </text>
@@ -210,13 +269,13 @@ const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yard
 
                 {/* Tooltip */}
                 {hoveredSensor && (
-                    <div className="absolute bg-gray-800 text-white p-2 border border-gray-600 rounded pointer-events-none z-10"
+                    <div className="absolute bg-slate-900 text-slate-100 p-3 border border-slate-600 rounded-lg pointer-events-none z-10 shadow-lg"
                          style={{
-                             left: `${(hoveredSensor.x / yardLength) * 100}%`,
-                             top: `${(hoveredSensor.y / yardWidth) * 100}%`,
+                             left: `${((marginLeft + hoveredSensor.x) / totalWidth) * 100}%`,
+                             top: `${((marginTop + hoveredSensor.y) / totalHeight) * 100}%`,
                              transform: 'translate(-50%, -100%)'
                          }}>
-                        <p className="text-sm">{`Sensor ID: ${hoveredSensor.sensor_id}`}</p>
+                        <p className="text-sm font-medium">{`Sensor ID: ${hoveredSensor.sensor_id}`}</p>
                         <p className="text-sm">{`Position: (${hoveredSensor.y}, ${hoveredSensor.x})`}</p>
                         <p className="text-sm">{`Intensity: ${hoveredSensor.z ?? 'N/A'}`}</p>
                     </div>
@@ -224,18 +283,18 @@ const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yard
             </div>
 
             {/* Legend */}
-            <div className="mt-4 flex items-center justify-center space-x-6 text-sm">
+            <div className="mt-4 flex items-center justify-center space-x-6 text-sm text-slate-300">
                 <div className="flex items-center space-x-2">
                     <div className="w-4 h-4 border-2 border-pink-500 rounded-full bg-transparent"></div>
                     <span>Sensor Locations</span>
                 </div>
                 <div className="flex items-center space-x-6 ml-8">
                     <div className="flex items-center space-x-1">
-                        <div className="w-4 h-4 bg-gray-800"></div>
+                        <div className="w-4 h-4 bg-slate-800 border border-slate-600"></div>
                         <span>Low Intensity</span>
                     </div>
                     <div className="flex items-center space-x-1">
-                        <div className="w-4 h-4 bg-yellow-200"></div>
+                        <div className="w-4 h-4 bg-yellow-200 border border-slate-600"></div>
                         <span>High Intensity</span>
                     </div>
                 </div>
