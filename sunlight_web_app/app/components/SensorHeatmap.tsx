@@ -4,7 +4,7 @@
  * Contains the sensor heatmap and associated components.
  *
  * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
- * Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+ * Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025), and Claude Sonnet 4 (2025).
  * Apache 2.0 Licensed as described in the file LICENSE
  */
 
@@ -169,63 +169,51 @@ const SensorHeatmap = () => {
         return closestIndex;
     }, [weatherData?.sunset, timestamps, timezone]);
 
-    // Clean up interval on unmount
-    useEffect(() => {
-        return () => {
-            if (playIntervalRef.current) {
-                clearInterval(playIntervalRef.current);
-            }
-        };
-    }, []);
-
-    // Auto-stop when reaching the end or sunset
+    // Effect to manage the animation interval.
+    // This is the single source of truth for starting/stopping the animation.
     useEffect(() => {
         if (isPlaying) {
-            const sunsetIndex = findSunsetIndex();
-            if (currentTimeIndex >= timestamps.length - 1 || currentTimeIndex >= sunsetIndex) {
-                setIsPlaying(false);
-                if (playIntervalRef.current) {
-                    clearInterval(playIntervalRef.current);
-                    playIntervalRef.current = null;
-                }
-            }
+            // If playing, set up an interval to advance the time index.
+            playIntervalRef.current = setInterval(() => {
+                setCurrentTimeIndex(prevIndex => {
+                    const sunsetIndex = findSunsetIndex();
+                    const nextIndex = prevIndex + 1;
+
+                    // Stop if we reach the end of the data or the sunset index.
+                    if (nextIndex >= timestamps.length || nextIndex > sunsetIndex) {
+                        setIsPlaying(false); // This will trigger the cleanup in this effect.
+                        return sunsetIndex; // Settle on the sunset frame.
+                    }
+                    return nextIndex;
+                });
+            }, 250); // Animation speed
         }
-    }, [currentTimeIndex, timestamps.length, isPlaying, findSunsetIndex]);
 
-    const handlePlayPause = () => {
-        if (isPlaying) {
-            // Pause
-            setIsPlaying(false);
+        // Cleanup function: This runs when isPlaying becomes false or the component unmounts.
+        return () => {
             if (playIntervalRef.current) {
                 clearInterval(playIntervalRef.current);
                 playIntervalRef.current = null;
             }
-        } else {
-            // Play - always jump to sunrise and start playing
-            setIsPlaying(true);
+        };
+    }, [isPlaying, findSunsetIndex, timestamps.length]);
 
-            // Always jump to sunrise when starting to play
-            const sunriseIndex = findSunriseIndex();
+    const handlePlayPause = () => {
+        const sunriseIndex = findSunriseIndex();
+        const sunsetIndex = findSunsetIndex();
+
+        // Condition to restart from sunrise:
+        // 1. It's not currently playing.
+        // 2. The current time is either before sunrise or at/after sunset.
+        const shouldRestart = !isPlaying && (currentTimeIndex < sunriseIndex || currentTimeIndex >= sunsetIndex);
+
+        if (shouldRestart) {
             setCurrentTimeIndex(sunriseIndex);
-
-            // Start the animation with a slight delay to ensure the index is set
-            setTimeout(() => {
-                playIntervalRef.current = setInterval(() => {
-                    setCurrentTimeIndex(prevIndex => {
-                        const sunsetIndex = findSunsetIndex();
-                        const nextIndex = prevIndex + 1;
-                        if (nextIndex >= timestamps.length || nextIndex >= sunsetIndex) {
-                            setIsPlaying(false);
-                            if (playIntervalRef.current) {
-                                clearInterval(playIntervalRef.current);
-                                playIntervalRef.current = null;
-                            }
-                            return prevIndex; // Don't go past sunset or the end
-                        }
-                        return nextIndex;
-                    });
-                }, 250); // 250ms = 0.25 seconds (15 minutes per 0.25 seconds, 1 hour per second)
-            }, 50); // Small delay to ensure state update
+            setIsPlaying(true);
+        } else {
+            // Otherwise, just toggle the play/pause state.
+            // This handles pausing if it's playing, and resuming if it's paused mid-day.
+            setIsPlaying(prevIsPlaying => !prevIsPlaying);
         }
     };
 
@@ -301,13 +289,10 @@ const SensorHeatmap = () => {
                                 onChange={(e) => {
                                     const newIndex = Number(e.target.value);
                                     setCurrentTimeIndex(newIndex);
-                                    // Pause if user manually moves slider while playing
+                                    // Pause if user manually moves slider while playing.
+                                    // The useEffect hook will handle clearing the interval.
                                     if (isPlaying) {
                                         setIsPlaying(false);
-                                        if (playIntervalRef.current) {
-                                            clearInterval(playIntervalRef.current);
-                                            playIntervalRef.current = null;
-                                        }
                                     }
                                 }}
                                 className="flex-1"

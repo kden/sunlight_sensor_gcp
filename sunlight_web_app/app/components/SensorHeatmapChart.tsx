@@ -4,11 +4,11 @@
  * Renders the sensor heat map with interpolated values, showing light intensity on a land map at a point in time.
  *
  * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
- * Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+ * Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025), and Claude Sonnet 4 (2025).
  * Apache 2.0 Licensed as described in the file LICENSE
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { ChartDataPoint } from "@/app/types/ChartDataPoint";
 
 interface SensorHeatmapChartProps {
@@ -21,8 +21,8 @@ interface SensorHeatmapChartProps {
 const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yardLength, yardWidth, maxIntensity }) => {
     const [hoveredSensor, setHoveredSensor] = useState<ChartDataPoint | null>(null);
 
-    // Inverse Distance Weighting interpolation
-    const interpolateValue = (x: number, y: number, sensors: ChartDataPoint[]): number => {
+    // Inverse Distance Weighting interpolation, memoized for performance.
+    const interpolateValue = useCallback((x: number, y: number, sensors: ChartDataPoint[]): number => {
         let weightSum = 0;
         let valueSum = 0;
         const power = 2; // Power parameter for IDW
@@ -40,37 +40,10 @@ const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yard
         }
 
         return weightSum > 0 ? valueSum / weightSum : 0;
-    };
+    }, []);
 
-    // Create interpolated heatmap grid
-    const heatmapGrid = useMemo(() => {
-        if (!chartData || chartData.length === 0) return [];
-
-        // Filter out sensors with no data
-        const validSensors = chartData.filter(sensor => sensor.z !== undefined && sensor.z !== null);
-        if (validSensors.length === 0) return [];
-
-        const gridCells: Array<{x: number, y: number, value: number}> = [];
-
-        // Create 1x1 foot grid cells
-        for (let x = 0; x < yardLength; x += 1) {
-            for (let y = 0; y < yardWidth; y += 1) {
-                const centerX = x + 0.5;
-                const centerY = y + 0.5;
-                const interpolatedIntensity = interpolateValue(centerX, centerY, validSensors);
-                gridCells.push({
-                    x: x,
-                    y: y,
-                    value: interpolatedIntensity
-                });
-            }
-        }
-
-        return gridCells;
-    }, [chartData, yardLength, yardWidth, interpolateValue]);
-
-    // Calculate fill color based on intensity
-    const calculateFillColor = (intensity: number): string => {
+    // Calculate fill color based on intensity, returns an array for efficiency.
+    const calculateFillColor = (intensity: number): [number, number, number] => {
         const effectiveMaxIntensity = maxIntensity > 0 ? maxIntensity : 1;
         const ratio = Math.min(intensity / effectiveMaxIntensity, 1);
 
@@ -82,8 +55,43 @@ const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yard
         const g = Math.round(startColor[1] + (endColor[1] - startColor[1]) * ratio);
         const b = Math.round(startColor[2] + (endColor[2] - startColor[2]) * ratio);
 
-        return `rgb(${r}, ${g}, ${b})`;
+        return [r, g, b];
     };
+
+    // Generate the heatmap as a single image data URL for high-performance rendering.
+    const heatmapDataUrl = useMemo(() => {
+        // Guard against running on the server or with no data.
+        if (typeof window === 'undefined' || !chartData || chartData.length === 0) {
+            return '';
+        }
+
+        const validSensors = chartData.filter(sensor => sensor.z !== undefined && sensor.z !== null);
+        if (validSensors.length === 0) return '';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = yardLength;
+        canvas.height = yardWidth;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        if (!ctx) return '';
+
+        const imageData = ctx.createImageData(yardLength, yardWidth);
+        const data = imageData.data;
+
+        for (let y = 0; y < yardWidth; y++) {
+            for (let x = 0; x < yardLength; x++) {
+                const value = interpolateValue(x + 0.5, y + 0.5, validSensors);
+                const [r, g, b] = calculateFillColor(value);
+                const index = (y * yardLength + x) * 4;
+                data[index] = r;
+                data[index + 1] = g;
+                data[index + 2] = b;
+                data[index + 3] = 255; // Alpha channel (fully opaque)
+            }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        return canvas.toDataURL();
+    }, [chartData, yardLength, yardWidth, maxIntensity, interpolateValue]);
 
     // Chart layout constants
     const marginLeft = 15;
@@ -125,20 +133,21 @@ const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yard
                         strokeWidth="0.5"
                     />
 
-                    {/* Render heatmap grid */}
-                    <g clipPath="url(#heatmapClip)">
-                        {heatmapGrid.map((cell, index) => (
-                            <rect
-                                key={index}
-                                x={marginLeft + cell.x}
-                                y={marginTop + cell.y}
-                                width={1}
-                                height={1}
-                                fill={calculateFillColor(cell.value)}
-                                stroke="none"
-                            />
-                        ))}
+                    {/* Render heatmap as a single, high-performance image */}
+                    {heatmapDataUrl && (
+                        <image
+                            href={heatmapDataUrl}
+                            x={marginLeft}
+                            y={marginTop}
+                            width={yardLength}
+                            height={yardWidth}
+                            clipPath="url(#heatmapClip)"
+                            style={{ imageRendering: 'pixelated' }}
+                        />
+                    )}
 
+                    {/* Group for grid lines and sensor circles, which appear above the heatmap */}
+                    <g clipPath="url(#heatmapClip)">
                         {/* Render grid lines */}
                         {/* Vertical lines */}
                         {Array.from({length: Math.floor(yardLength/10) + 1}, (_, i) => i * 10)
