@@ -10,7 +10,7 @@
 
 "use client";
 
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useRef, useCallback} from 'react';
 import {DateTime} from 'luxon';
 import usePersistentState from '@/app/hooks/usePersistentState';
 import {useSensorHeatmapData} from '@/app/hooks/useSensorHeatmapData';
@@ -36,6 +36,8 @@ const SensorHeatmap = () => {
     const [currentTimeIndex, setCurrentTimeIndex] = useState(0);
     const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
     const [maxIntensity, setMaxIntensity] = useState(10000);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // --- State for user selections ---
     const [selectedDate, setSelectedDate] = usePersistentState('selectedDate', getTodayString());
@@ -93,6 +95,7 @@ const SensorHeatmap = () => {
     // Effect to reset the time slider when the data changes
     useEffect(() => {
         setCurrentTimeIndex(0);
+        setIsPlaying(false); // Stop playing when data changes
     }, [timestamps]);
 
     // Effect to transform data for the chart when the time slider or data changes
@@ -123,6 +126,108 @@ const SensorHeatmap = () => {
             setHoveredHour(null);
         }
     }, [currentTimeIndex, timestamps]);
+
+    // Find the index closest to sunrise time
+    const findSunriseIndex = useCallback((): number => {
+        if (!weatherData?.sunrise || timestamps.length === 0 || !timezone) {
+            return 0;
+        }
+
+        const sunriseTime = weatherData.sunrise.setZone(timezone);
+        let closestIndex = 0;
+        let minDiff = Math.abs(timestamps[0] - sunriseTime.toMillis());
+
+        for (let i = 1; i < timestamps.length; i++) {
+            const diff = Math.abs(timestamps[i] - sunriseTime.toMillis());
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestIndex = i;
+            }
+        }
+
+        return closestIndex;
+    }, [weatherData?.sunrise, timestamps, timezone]);
+
+    // Find the index closest to sunset time
+    const findSunsetIndex = useCallback((): number => {
+        if (!weatherData?.sunset || timestamps.length === 0 || !timezone) {
+            return timestamps.length - 1;
+        }
+
+        const sunsetTime = weatherData.sunset.setZone(timezone);
+        let closestIndex = timestamps.length - 1;
+        let minDiff = Math.abs(timestamps[timestamps.length - 1] - sunsetTime.toMillis());
+
+        for (let i = 0; i < timestamps.length; i++) {
+            const diff = Math.abs(timestamps[i] - sunsetTime.toMillis());
+            if (diff < minDiff) {
+                minDiff = diff;
+                closestIndex = i;
+            }
+        }
+
+        return closestIndex;
+    }, [weatherData?.sunset, timestamps, timezone]);
+
+    // Clean up interval on unmount
+    useEffect(() => {
+        return () => {
+            if (playIntervalRef.current) {
+                clearInterval(playIntervalRef.current);
+            }
+        };
+    }, []);
+
+    // Auto-stop when reaching the end or sunset
+    useEffect(() => {
+        if (isPlaying) {
+            const sunsetIndex = findSunsetIndex();
+            if (currentTimeIndex >= timestamps.length - 1 || currentTimeIndex >= sunsetIndex) {
+                setIsPlaying(false);
+                if (playIntervalRef.current) {
+                    clearInterval(playIntervalRef.current);
+                    playIntervalRef.current = null;
+                }
+            }
+        }
+    }, [currentTimeIndex, timestamps.length, isPlaying, findSunsetIndex]);
+
+    const handlePlayPause = () => {
+        if (isPlaying) {
+            // Pause
+            setIsPlaying(false);
+            if (playIntervalRef.current) {
+                clearInterval(playIntervalRef.current);
+                playIntervalRef.current = null;
+            }
+        } else {
+            // Play - always jump to sunrise and start playing
+            setIsPlaying(true);
+
+            // Always jump to sunrise when starting to play
+            const sunriseIndex = findSunriseIndex();
+            setCurrentTimeIndex(sunriseIndex);
+
+            // Start the animation with a slight delay to ensure the index is set
+            setTimeout(() => {
+                playIntervalRef.current = setInterval(() => {
+                    setCurrentTimeIndex(prevIndex => {
+                        const sunsetIndex = findSunsetIndex();
+                        const nextIndex = prevIndex + 1;
+                        if (nextIndex >= timestamps.length || nextIndex >= sunsetIndex) {
+                            setIsPlaying(false);
+                            if (playIntervalRef.current) {
+                                clearInterval(playIntervalRef.current);
+                                playIntervalRef.current = null;
+                            }
+                            return prevIndex; // Don't go past sunset or the end
+                        }
+                        return nextIndex;
+                    });
+                }, 250); // 250ms = 0.25 seconds (15 minutes per 0.25 seconds, 1 hour per second)
+            }, 50); // Small delay to ensure state update
+        }
+    };
 
     if (!isMounted) {
         return null;
@@ -161,6 +266,44 @@ const SensorHeatmap = () => {
                     />
 
                     <div className="mt-4">
+                        <div className="flex items-center gap-4 mb-4">
+                            <button
+                                onClick={handlePlayPause}
+                                className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                                    isPlaying
+                                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                                        : 'bg-green-500 hover:bg-green-600 text-white'
+                                }`}
+                                disabled={timestamps.length === 0}
+                            >
+                                {isPlaying ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex gap-1">
+                                            <div className="w-1 h-4 bg-white"></div>
+                                            <div className="w-1 h-4 bg-white"></div>
+                                        </div>
+                                        Pause
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-0 h-0 border-l-[8px] border-l-white border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent"></div>
+                                        Play from Sunrise
+                                    </div>
+                                )}
+                            </button>
+
+                            {weatherData?.sunrise && weatherData?.sunset && timezone && (
+                                <div className="flex gap-4 text-sm text-gray-600">
+                                    <span>
+                                        Sunrise: {weatherData.sunrise.setZone(timezone).toFormat('h:mm a')}
+                                    </span>
+                                    <span>
+                                        Sunset: {weatherData.sunset.setZone(timezone).toFormat('h:mm a')}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
                         <label htmlFor="time-slider" className="block mb-2">
                             Time: {timestamps[currentTimeIndex]
                             ? DateTime.fromMillis(timestamps[currentTimeIndex]).setZone(timezone).toFormat('h:mm a')
@@ -172,7 +315,18 @@ const SensorHeatmap = () => {
                             min="0"
                             max={timestamps.length > 0 ? timestamps.length - 1 : 0}
                             value={currentTimeIndex}
-                            onChange={(e) => setCurrentTimeIndex(Number(e.target.value))}
+                            onChange={(e) => {
+                                const newIndex = Number(e.target.value);
+                                setCurrentTimeIndex(newIndex);
+                                // Pause if user manually moves slider while playing
+                                if (isPlaying) {
+                                    setIsPlaying(false);
+                                    if (playIntervalRef.current) {
+                                        clearInterval(playIntervalRef.current);
+                                        playIntervalRef.current = null;
+                                    }
+                                }
+                            }}
                             className="w-full"
                             disabled={timestamps.length === 0}
                         />

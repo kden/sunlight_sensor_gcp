@@ -53,7 +53,6 @@ const SensorLevels = () => {
   const { weatherData, loading: weatherLoading, error: weatherError } = useDailyWeather(selectedDate, selectedSensorSet);
   const { hourlyWeatherData, loading: hourlyWeatherLoading, error: hourlyWeatherError } = useHourlyWeather(selectedDate, selectedSensorSet);
 
-  const sortedHourlyWeather = [...hourlyWeatherData].sort((a, b) => a.time.toMillis() - b.time.toMillis());
   const [hoveredHour, setHoveredHour] = useState<number | null>(null);
 
   useEffect(() => {
