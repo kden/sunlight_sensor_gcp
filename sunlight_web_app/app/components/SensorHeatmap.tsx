@@ -266,70 +266,54 @@ const SensorHeatmap = () => {
                     />
 
                     <div className="mt-4">
-                        <div className="flex items-center gap-4 mb-4">
-                            <button
-                                onClick={handlePlayPause}
-                                className={`px-4 py-2 rounded-md font-medium transition-colors ${
-                                    isPlaying
-                                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                                        : 'bg-green-500 hover:bg-green-600 text-white'
-                                }`}
-                                disabled={timestamps.length === 0}
-                            >
-                                {isPlaying ? (
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex gap-1">
-                                            <div className="w-1 h-4 bg-white"></div>
-                                            <div className="w-1 h-4 bg-white"></div>
-                                        </div>
-                                        Pause
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-0 h-0 border-l-[8px] border-l-white border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent"></div>
-                                        Play from Sunrise
-                                    </div>
-                                )}
-                            </button>
-
-                            {weatherData?.sunrise && weatherData?.sunset && timezone && (
-                                <div className="flex gap-4 text-sm text-gray-600">
-                                    <span>
-                                        Sunrise: {weatherData.sunrise.setZone(timezone).toFormat('h:mm a')}
-                                    </span>
-                                    <span>
-                                        Sunset: {weatherData.sunset.setZone(timezone).toFormat('h:mm a')}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
                         <label htmlFor="time-slider" className="block mb-2">
                             Time: {timestamps[currentTimeIndex]
                             ? DateTime.fromMillis(timestamps[currentTimeIndex]).setZone(timezone).toFormat('h:mm a')
                             : 'N/A'}
                         </label>
-                        <input
-                            id="time-slider"
-                            type="range"
-                            min="0"
-                            max={timestamps.length > 0 ? timestamps.length - 1 : 0}
-                            value={currentTimeIndex}
-                            onChange={(e) => {
-                                const newIndex = Number(e.target.value);
-                                setCurrentTimeIndex(newIndex);
-                                // Pause if user manually moves slider while playing
-                                if (isPlaying) {
-                                    setIsPlaying(false);
-                                    if (playIntervalRef.current) {
-                                        clearInterval(playIntervalRef.current);
-                                        playIntervalRef.current = null;
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={handlePlayPause}
+                                className={`p-2 rounded-md transition-colors ${
+                                    isPlaying
+                                        ? 'bg-gray-200 hover:bg-gray-300 text-black'
+                                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                                }`}
+                                disabled={timestamps.length === 0}
+                                title={timestamps.length === 0 ? "No data available" : (isPlaying ? "Pause" : "Play from sunrise")}
+                            >
+                                {isPlaying ? (
+                                    <div className="flex gap-1">
+                                        <div className="w-1 h-4 bg-black"></div>
+                                        <div className="w-1 h-4 bg-black"></div>
+                                    </div>
+                                ) : (
+                                    <div className="w-0 h-0 border-l-[8px] border-l-white border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent"></div>
+                                )}
+                            </button>
+
+                            <input
+                                id="time-slider"
+                                type="range"
+                                min="0"
+                                max={timestamps.length > 0 ? timestamps.length - 1 : 0}
+                                value={currentTimeIndex}
+                                onChange={(e) => {
+                                    const newIndex = Number(e.target.value);
+                                    setCurrentTimeIndex(newIndex);
+                                    // Pause if user manually moves slider while playing
+                                    if (isPlaying) {
+                                        setIsPlaying(false);
+                                        if (playIntervalRef.current) {
+                                            clearInterval(playIntervalRef.current);
+                                            playIntervalRef.current = null;
+                                        }
                                     }
-                                }
-                            }}
-                            className="w-full"
-                            disabled={timestamps.length === 0}
-                        />
+                                }}
+                                className="flex-1"
+                                disabled={timestamps.length === 0}
+                            />
+                        </div>
                     </div>
                 </div>
             )}
