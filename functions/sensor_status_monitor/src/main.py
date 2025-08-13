@@ -13,18 +13,64 @@ import json
 import base64
 import collections
 import smtplib
+import urllib.request
+import urllib.parse
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import functions_framework
 
 
+def send_pushover_notification(sensor_id, sensor_set_id, status_message):
+    """
+    Send a push notification via Pushover API.
+    Free for up to 10,000 notifications per month.
+    """
+    pushover_token = os.environ.get('PUSHOVER_APP_TOKEN')
+    pushover_user = os.environ.get('PUSHOVER_USER_KEY')
+
+    if not pushover_token or not pushover_user:
+        print("ERROR: Missing Pushover configuration (PUSHOVER_APP_TOKEN or PUSHOVER_USER_KEY)")
+        return
+
+    try:
+        # Pushover API endpoint
+        url = "https://api.pushover.net/1/messages.json"
+
+        # Create the message data
+        data = {
+            'token': pushover_token,
+            'user': pushover_user,
+            'title': f'Sensor {sensor_id}',
+            'message': f'{status_message}\n\nSensor Set: {sensor_set_id}',
+            'priority': 0,  # Normal priority
+            'sound': 'pushover'  # Default notification sound
+        }
+
+        # Encode data for POST request
+        encoded_data = urllib.parse.urlencode(data).encode('utf-8')
+
+        # Create and send request
+        req = urllib.request.Request(url, data=encoded_data)
+        req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+
+        with urllib.request.urlopen(req) as response:
+            result = json.loads(response.read().decode('utf-8'))
+
+        if result.get('status') == 1:
+            print(f"INFO: Pushover notification sent successfully for sensor {sensor_id}")
+        else:
+            print(f"ERROR: Pushover API returned error: {result}")
+
+    except Exception as e:
+        print(f"ERROR: Failed to send Pushover notification: {e}")
+
+
 def send_status_notification(sensor_id, sensor_set_id, status_message):
     """
-    Send email and SMS notifications for status messages using free tier services.
-    Uses Gmail SMTP for email and email-to-SMS gateway for SMS.
+    Send email and Pushover notifications for status messages using free tier services.
+    Uses Gmail SMTP for email and Pushover API for push notifications.
     """
     email_address = os.environ.get('ALERT_EMAIL_ADDRESS')
-    phone_number = os.environ.get('ALERT_PHONE_NUMBER')
     gmail_user = os.environ.get('GMAIL_USER')  # Your Gmail address
     gmail_app_password = os.environ.get('GMAIL_APP_PASSWORD')  # Gmail app password
 
@@ -65,50 +111,8 @@ This is informational only - no action required.
     except Exception as e:
         print(f"ERROR: Failed to send email notification: {e}")
 
-    # SMS notification using email-to-SMS gateway
-    if phone_number:
-        try:
-            # Detect carrier and use appropriate SMS gateway
-            # You'll need to set CARRIER environment variable or detect it
-            carrier = os.environ.get('CARRIER', 'verizon').lower()
-
-            # Common email-to-SMS gateways (all free)
-            sms_gateways = {
-                'verizon': 'vtext.com',
-                'att': 'txt.att.net',
-                'tmobile': 'tmomail.net',
-                'sprint': 'messaging.sprintpcs.com',
-                'cricket': 'sms.cricketwireless.net',
-                'boost': 'smsmyboostmobile.com',
-                'metro': 'mymetropcs.com'
-            }
-
-            gateway = sms_gateways.get(carrier)
-            if not gateway:
-                print(f"WARN: Unknown carrier {carrier}, using Verizon gateway")
-                gateway = 'vtext.com'
-
-            # Clean phone number (remove non-digits)
-            clean_phone = ''.join(filter(str.isdigit, phone_number))
-            sms_email = f"{clean_phone}@{gateway}"
-
-            # Create SMS message (keep it short due to SMS limits)
-            sms_msg = MIMEText(f"Sensor {sensor_id}: {status_message}")
-            sms_msg['From'] = gmail_user
-            sms_msg['To'] = sms_email
-            sms_msg['Subject'] = ""  # Some carriers ignore subject for SMS
-
-            # Send SMS via email gateway
-            server = smtplib.SMTP('smtp.gmail.com', 587)
-            server.starttls()
-            server.login(gmail_user, gmail_app_password)
-            server.send_message(sms_msg)
-            server.quit()
-
-            print(f"INFO: SMS notification sent to {clean_phone} via {gateway}")
-
-        except Exception as e:
-            print(f"ERROR: Failed to send SMS notification: {e}")
+    # Pushover notification
+    send_pushover_notification(sensor_id, sensor_set_id, status_message)
 
 
 @functions_framework.cloud_event

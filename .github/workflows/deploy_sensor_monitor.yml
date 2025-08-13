@@ -78,5 +78,5 @@ jobs:
             --entry-point=process_sensor_status \
             --trigger-topic=sun-sensor-ingest-topic \
             --service-account=$RUNTIME_SERVICE_ACCOUNT \
-            --set-env-vars="ALERT_EMAIL_ADDRESS=${{ secrets.ALERT_EMAIL_ADDRESS }},ALERT_PHONE_NUMBER=${{ secrets.ALERT_PHONE_NUMBER }},GMAIL_USER=${{ secrets.GMAIL_USER }},GMAIL_APP_PASSWORD=${{ secrets.GMAIL_APP_PASSWORD }},CARRIER=${{ secrets.CARRIER }}" \
+            --set-env-vars="ALERT_EMAIL_ADDRESS=${{ secrets.ALERT_EMAIL_ADDRESS }},GMAIL_USER=${{ secrets.GMAIL_USER }},GMAIL_APP_PASSWORD=${{ secrets.GMAIL_APP_PASSWORD }},PUSHOVER_APP_TOKEN=${{ secrets.PUSHOVER_APP_TOKEN }},PUSHOVER_USER_KEY=${{ secrets.PUSHOVER_USER_KEY }}" \
             --verbosity=debug
