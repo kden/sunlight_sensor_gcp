@@ -1,15 +1,15 @@
 # terraform/monitoring.tf
 #
-# Defines Log-based Alerting to monitor sensor status messages and send
-# email/SMS notifications. The function itself is deployed via CI/CD.
+# Defines Log-based Alerting to monitor sensor ping absence only.
+# Status notifications are now sent directly by the Cloud Function.
 #
 # Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4 (2025).
 # Apache 2.0 Licensed as described in the file LICENSE
 
 
-# --- 1. Create a Notification Channel ---
-# This defines where the alert notifications will be sent.
+# --- 1. Create Notification Channels for CRITICAL alerts only ---
+# (Status notifications are now handled directly by the Cloud Function)
 resource "google_monitoring_notification_channel" "email_channel" {
   project      = var.gcp_project_id
   display_name = "Sensor Alert Email"
@@ -28,110 +28,14 @@ resource "google_monitoring_notification_channel" "sms_channel" {
   }
 }
 
-# --- 2. Create a Log-based Metric ---
-# This counts the number of log entries that match our specific alert filter.
-resource "google_logging_metric" "sensor_status_alerts" {
-  project = var.gcp_project_id
-  name    = "sensor_status_alert_count"
-  filter  = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"sensor-status-monitor-function\" AND jsonPayload.log_name=\"sensor_status_alert\""
+# --- 2. Create Log-based Metrics for Sensor Data ---
 
-  metric_descriptor {
-    metric_kind = "DELTA"
-    value_type  = "INT64"
-    # A label to track which sensor sent the alert
-    labels {
-      key         = "sensor_id"
-      value_type  = "STRING"
-      description = "The ID of the sensor sending a status alert"
-    }
-    labels {
-      key         = "sensor_set_id"
-      value_type  = "STRING"
-      description = "The ID of the sensor set sending a status alert"
-    }
-    # A label to hold the actual status message
-    labels {
-      key         = "status" # Renamed for consistency
-      value_type  = "STRING"
-      description = "The status message content from the log"
-    }
-  }
-
-  # The extractor to populate the new labels from the log payload
-  label_extractors = {
-    "sensor_id"     = "EXTRACT(jsonPayload.sensor_id)"
-    "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
-    "status"        = "EXTRACT(jsonPayload.status)"
-  }
-}
-
-# --- 3. Create the Alerting Policy ---
-# This watches the metric and triggers an alert if it sees any matching logs.
-resource "google_monitoring_alert_policy" "status_alert_policy" {
-  project      = var.gcp_project_id
-  display_name = "Sensor Status Alert"
-  combiner     = "OR"
-
-  # The conditions for triggering the alert
-  conditions {
-    display_name = "A sensor has reported a status update"
-    condition_threshold {
-      # This filter points to the log-based metric we just created.
-      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.sensor_status_alerts.name}\" AND resource.type=\"cloud_run_revision\""
-      duration        = "60s"
-      comparison      = "COMPARISON_GT"
-      threshold_value = 0
-      trigger {
-        count = 1
-      }
-      aggregations {
-        alignment_period   = "60s"
-        per_series_aligner = "ALIGN_COUNT"
-      }
-    }
-  }
-
-  documentation {
-    # Use Markdown for rich formatting in emails.
-    mime_type = "text/markdown"
-
-    # This subject is used for the email subject and the body of SMS messages.
-    subject = "SENSOR ALERT: Sensor $${metric.label.sensor_id} reports: $${metric.label.status}"
-
-    # HEREDOC for a clean, multi-line Markdown message body.
-    # Note: $${...} is used to escape the variables for Terraform, so Google Cloud can substitute them.
-    content = <<-EOT
-      ## 🚨 Sensor Status Alert
-
-      A sensor has reported a new status.
-
-      **Details:**
-      - **Project ID:** `$${resource.label.project_id}`
-      - **Sensor ID:** `$${metric.label.sensor_id}`
-      - **Sensor Set:** `$${metric.label.sensor_set_id}`
-      - **Reported Status:** `$${metric.label.status}`
-
-      **Next Steps:**
-      - View Logs for this Sensor
-      - View Alert Policy
-    EOT
-  }
-
-  # Link the policy to our notification channels.
-  notification_channels = [
-    google_monitoring_notification_channel.email_channel.id,
-    google_monitoring_notification_channel.sms_channel.id,
-  ]
-}
-
-# --- 5. Create a generalized Log-based Metric for All Sensor Pings ---
-# This counts "ping" log entries and extracts the sensor_id as a label,
-# creating a separate time series for each sensor automatically.
+# Metric 1: Count of ping events (for absence detection)
 resource "google_logging_metric" "sensor_ping_count" {
   project = var.gcp_project_id
   name    = "sensor_ping_count"
 
-  # The filter now pings from ANY sensor, EXCLUDING the 'test' set.
+  # The filter for pings from ANY sensor, EXCLUDING the 'test' set.
   filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"sensor-status-monitor-function\" AND jsonPayload.log_name=\"sensor_status_ping\" AND jsonPayload.sensor_set_id != \"test\""
 
   metric_descriptor {
@@ -142,7 +46,6 @@ resource "google_logging_metric" "sensor_ping_count" {
       value_type  = "STRING"
       description = "The ID of the sensor sending a ping"
     }
-    # A label for the sensor set ID.
     labels {
       key         = "sensor_set_id"
       value_type  = "STRING"
@@ -156,12 +59,44 @@ resource "google_logging_metric" "sensor_ping_count" {
     "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
   }
 }
-# --- 6. Create a generalized Alerting Policy for Ping Absence ---
+
+# Metric 2: Count data point events, weighted by the number of points (alternative approach)
+# This creates a custom metric that we can populate from the Cloud Function
+resource "google_logging_metric" "sensor_data_points" {
+  project = var.gcp_project_id
+  name    = "sensor_data_points_received"
+
+  # Filter for a special log entry that the function will create for data points
+  filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"sensor-status-monitor-function\" AND jsonPayload.log_name=\"sensor_data_point_metric\" AND jsonPayload.sensor_set_id != \"test\""
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    labels {
+      key         = "sensor_id"
+      value_type  = "STRING"
+      description = "The ID of the sensor sending data points"
+    }
+    labels {
+      key         = "sensor_set_id"
+      value_type  = "STRING"
+      description = "The set ID of the sensor sending data points"
+    }
+  }
+
+  # Extract the data_point_count from the log message
+  label_extractors = {
+    "sensor_id"     = "EXTRACT(jsonPayload.sensor_id)"
+    "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
+  }
+}
+
+# --- 3. Create Alerting Policy for Ping Absence ONLY ---
 # This watches all sensor ping streams and triggers if any one of them is
-# absent for 15 minutes.
+# absent for 15 minutes. This IS treated as a critical incident.
 resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
   project      = var.gcp_project_id
-  display_name = "Sensor Ping Absence Alert" # Generic display name
+  display_name = "Sensor Ping Absence Alert"
   combiner     = "OR"
 
   # The conditions for triggering the alert
@@ -187,7 +122,7 @@ resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
     mime_type = "text/markdown"
 
     # This subject is used for the email subject and the body of SMS messages.
-    subject = "SENSOR OFFLINE: Sensor $${metric.label.sensor_id} has stopped sending pings."
+    subject = "🚨 SENSOR OFFLINE: Sensor $${metric.label.sensor_id} has stopped sending pings."
 
     # Use a HEREDOC for a clean, multi-line Markdown message body.
     content = <<-EOT
@@ -207,7 +142,7 @@ resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
     EOT
   }
 
-  # Link the policy to our existing email notification channel.
+  # Link the policy to both critical notification channels (email + SMS)
   notification_channels = [
     google_monitoring_notification_channel.email_channel.id,
     google_monitoring_notification_channel.sms_channel.id,

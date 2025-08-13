@@ -15,15 +15,123 @@ import collections
 import smtplib
 import urllib.request
 import urllib.parse
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import functions_framework
 
 
-def send_pushover_notification(sensor_id, sensor_set_id, status_message):
+# Global storage for pending status messages (keyed by sensor_id)
+pending_status_messages = {}
+
+class PendingStatusGroup:
+    def __init__(self, sensor_id, sensor_set_id):
+        self.sensor_id = sensor_id
+        self.sensor_set_id = sensor_set_id
+        self.crash_message = None
+        self.wifi_message = None
+        self.ntp_message = None
+        self.creation_time = time.time()  # For timeout purposes
+
+    def add_message(self, status_message):
+        """Add a status message and return True if we should send the group"""
+        if "CRASH detected" in status_message:
+            self.crash_message = status_message
+            return False  # Wait for more messages
+        elif "wifi connected" in status_message:
+            if self.crash_message:  # Only group if we have a crash
+                self.wifi_message = status_message
+                return False  # Wait for NTP
+            else:
+                return True  # Send immediately if no crash context
+        elif "ntp set" in status_message:
+            if self.crash_message and self.wifi_message:  # Complete group
+                self.ntp_message = status_message
+                return True  # Send the complete group
+            elif self.crash_message:  # Just crash + ntp
+                self.ntp_message = status_message
+                return True  # Send crash + ntp
+            else:
+                return True  # Send immediately if no crash context
+        else:
+            return True  # Unknown message type, send immediately
+
+    def is_expired(self, timeout_seconds=300):  # 5 minutes
+        """Check if this group has been waiting too long"""
+        return time.time() - self.creation_time > timeout_seconds
+
+    def create_grouped_message(self):
+        """Create a single message from all collected status updates"""
+        messages = []
+        title_parts = []
+
+        if self.crash_message:
+            messages.append(f"🚨 CRASH: {self.crash_message}")
+            # Extract crash cause for title
+            if "(" in self.crash_message:
+                crash_cause = self.crash_message.split("(")[1].split(")")[0]
+                title_parts.append(f"Crash: {crash_cause}")
+
+        if self.wifi_message:
+            messages.append(f"📶 WIFI: {self.wifi_message}")
+            # Extract AP name for title
+            if "connected to" in self.wifi_message:
+                ap_name = self.wifi_message.split("connected to")[1].strip().strip("()")
+                title_parts.append(f"WiFi: {ap_name}")
+
+        if self.ntp_message:
+            # Extract the timestamp part after "ntp set" if it exists
+            if "ntp set " in self.ntp_message:
+                parts = self.ntp_message.split("ntp set ", 1)
+                if len(parts) > 1 and parts[1].strip():
+                    # New firmware with timestamp
+                    ntp_time_part = parts[1]
+                    messages.append(f"🕐 NTP: ntp set {ntp_time_part}")
+
+                    # Extract just the Chicago time for the title (the part after the slash)
+                    if "/" in ntp_time_part and "(America/Chicago)" in ntp_time_part:
+                        try:
+                            # Look for pattern like "/ 8:30:45 (America/Chicago)"
+                            chicago_part = ntp_time_part.split("/")[1].strip()
+                            if chicago_part.startswith(" "):
+                                chicago_part = chicago_part[1:]  # Remove leading space
+                            chicago_time = chicago_part.split(" (America/Chicago)")[0]
+                            title_parts.append(f"Time: {chicago_time}")
+                        except:
+                            # If parsing fails, don't add time to title
+                            pass
+                else:
+                    # Old firmware - just "ntp set"
+                    messages.append(f"🕐 NTP: {self.ntp_message}")
+            else:
+                # Fallback if message doesn't contain "ntp set " at all
+                messages.append(f"🕐 NTP: {self.ntp_message}")
+
+        # Create title
+        if title_parts:
+            title = f"{self.sensor_id} - {' | '.join(title_parts)}"
+        else:
+            title = f"{self.sensor_id} - Status Update"
+
+        # Create message body
+        body = f"""
+Sensor Status Update Group
+
+Sensor: {self.sensor_id}
+Sensor Set: {self.sensor_set_id}
+
+Status Updates:
+{chr(10).join(messages)}
+
+This appears to be a sensor restart sequence.
+        """
+
+        return title, body.strip()
+
+
+def send_pushover_notification(title, message):
     """
     Send a push notification via Pushover API.
-    Free for up to 10,000 notifications per month.
     """
     pushover_token = os.environ.get('PUSHOVER_APP_TOKEN')
     pushover_user = os.environ.get('PUSHOVER_USER_KEY')
@@ -40,8 +148,8 @@ def send_pushover_notification(sensor_id, sensor_set_id, status_message):
         data = {
             'token': pushover_token,
             'user': pushover_user,
-            'title': f'Sensor {sensor_id}',
-            'message': f'{status_message}\n\nSensor Set: {sensor_set_id}',
+            'title': title,
+            'message': message,
             'priority': 0,  # Normal priority
             'sound': 'pushover'  # Default notification sound
         }
@@ -57,7 +165,7 @@ def send_pushover_notification(sensor_id, sensor_set_id, status_message):
             result = json.loads(response.read().decode('utf-8'))
 
         if result.get('status') == 1:
-            print(f"INFO: Pushover notification sent successfully for sensor {sensor_id}")
+            print(f"INFO: Pushover notification sent successfully: {title}")
         else:
             print(f"ERROR: Pushover API returned error: {result}")
 
@@ -65,37 +173,25 @@ def send_pushover_notification(sensor_id, sensor_set_id, status_message):
         print(f"ERROR: Failed to send Pushover notification: {e}")
 
 
-def send_status_notification(sensor_id, sensor_set_id, status_message):
+def send_email_notification(title, message):
     """
-    Send email and Pushover notifications for status messages using free tier services.
-    Uses Gmail SMTP for email and Pushover API for push notifications.
+    Send email notification via Gmail SMTP.
     """
     email_address = os.environ.get('ALERT_EMAIL_ADDRESS')
-    gmail_user = os.environ.get('GMAIL_USER')  # Your Gmail address
-    gmail_app_password = os.environ.get('GMAIL_APP_PASSWORD')  # Gmail app password
+    gmail_user = os.environ.get('GMAIL_USER')
+    gmail_app_password = os.environ.get('GMAIL_APP_PASSWORD')
 
     if not all([email_address, gmail_user, gmail_app_password]):
         print("ERROR: Missing email configuration environment variables")
         return
 
-    # Email notification
     try:
         msg = MIMEMultipart()
         msg['From'] = gmail_user
         msg['To'] = email_address
-        msg['Subject'] = f"ℹ️ Sensor Status: {sensor_id} - {status_message}"
+        msg['Subject'] = f"ℹ️ {title}"
 
-        body = f"""
-Sensor Status Update
-
-Sensor: {sensor_id}
-Sensor Set: {sensor_set_id}
-Status: {status_message}
-
-This is informational only - no action required.
-        """
-
-        msg.attach(MIMEText(body, 'plain'))
+        msg.attach(MIMEText(message, 'plain'))
 
         # Connect to Gmail SMTP
         server = smtplib.SMTP('smtp.gmail.com', 587)
@@ -106,13 +202,81 @@ This is informational only - no action required.
         server.send_message(msg)
         server.quit()
 
-        print(f"INFO: Email notification sent for sensor {sensor_id}")
+        print(f"INFO: Email notification sent: {title}")
 
     except Exception as e:
         print(f"ERROR: Failed to send email notification: {e}")
 
-    # Pushover notification
-    send_pushover_notification(sensor_id, sensor_set_id, status_message)
+
+def process_status_message(sensor_id, sensor_set_id, status_message):
+    """
+    Process a status message, potentially grouping it with others.
+    Returns True if a notification was sent.
+    """
+    global pending_status_messages
+
+    # Clean up expired pending messages first
+    current_time = time.time()
+    expired_sensors = [
+        sid for sid, group in pending_status_messages.items()
+        if group.is_expired()
+    ]
+
+    for expired_sensor in expired_sensors:
+        print(f"INFO: Sending expired status group for {expired_sensor}")
+        group = pending_status_messages.pop(expired_sensor)
+        title, body = group.create_grouped_message()
+        send_email_notification(title, body)
+        send_pushover_notification(title, body)
+
+    # Check if this message should be grouped
+    should_group = ("CRASH detected" in status_message or
+                   "wifi connected" in status_message or
+                   "ntp set" in status_message)
+
+    if not should_group:
+        # Send immediately for non-groupable messages
+        title = f"{sensor_id} - {status_message}"
+        body = f"""
+Sensor Status Update
+
+Sensor: {sensor_id}
+Sensor Set: {sensor_set_id}
+Status: {status_message}
+
+This is informational only - no action required.
+        """
+        send_email_notification(title, body)
+        send_pushover_notification(title, body)
+        return True
+
+    # Handle groupable messages
+    if sensor_id not in pending_status_messages:
+        pending_status_messages[sensor_id] = PendingStatusGroup(sensor_id, sensor_set_id)
+
+    group = pending_status_messages[sensor_id]
+    should_send = group.add_message(status_message)
+
+    if should_send:
+        # Send the grouped message
+        title, body = group.create_grouped_message()
+        send_email_notification(title, body)
+        send_pushover_notification(title, body)
+
+        # Remove from pending
+        del pending_status_messages[sensor_id]
+        return True
+    else:
+        print(f"INFO: Status message queued for grouping: {sensor_id} - {status_message}")
+        return False
+
+
+def send_status_notification(sensor_id, sensor_set_id, status_message):
+    """
+    Send email and Pushover notifications for status messages using free tier services.
+    Uses intelligent grouping for related status messages.
+    """
+    process_status_message(sensor_id, sensor_set_id, status_message)
 
 
 @functions_framework.cloud_event
@@ -174,9 +338,11 @@ def process_sensor_status(cloud_event):
         sensor_set_id = reading.get("sensor_set_id", "Unknown Sensor Set")
         pings_by_sensor[(sensor_set_id, sensor_id)].append(reading)
 
-    # Log a single summary message for each group of pings (unchanged)
+    # Log a single summary message for each group of pings
     for (sensor_set_id, sensor_id), readings in pings_by_sensor.items():
         num_points = len(readings)
+
+        # Log the regular ping summary (for absence detection)
         ping_log_entry = {
             "severity": "INFO",
             "message": f"{num_points} data points received from {sensor_id}",
@@ -187,3 +353,17 @@ def process_sensor_status(cloud_event):
             "data_payload": readings
         }
         print(json.dumps(ping_log_entry))
+
+        # Create multiple log entries for the data point metric
+        # Each log entry represents one data point for proper counting
+        for i in range(num_points):
+            data_point_metric_entry = {
+                "severity": "INFO",
+                "message": f"Data point {i+1}/{num_points} from {sensor_id}",
+                "sensor_id": sensor_id,
+                "sensor_set_id": sensor_set_id,
+                "log_name": "sensor_data_point_metric",
+                "point_index": i + 1,
+                "total_points": num_points
+            }
+            print(json.dumps(data_point_metric_entry))
