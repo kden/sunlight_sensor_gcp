@@ -152,17 +152,29 @@ def process_sensor_status(cloud_event):
         sensor_set_id = reading.get("sensor_set_id", "Unknown Sensor Set")
         status_message = reading["status"]
 
-        # Send direct notification (no incident created)
-        send_status_notification(sensor_id, sensor_set_id, status_message)
+        log_message = ""
+        log_name = ""
 
-        # Still log for debugging/audit purposes, but don't trigger alerts
+        # For battery status, only send Pushover. For others, send email and Pushover.
+        if "battery" in status_message.lower():
+            # Send Pushover notification only
+            send_pushover_notification(sensor_id, sensor_set_id, status_message)
+            log_message = f"Pushover-only notification sent for battery status from {sensor_id}: {status_message}"
+            log_name = "sensor_status_battery_notification_sent"
+        else:
+            # Send both email and Pushover notification
+            send_status_notification(sensor_id, sensor_set_id, status_message)
+            log_message = f"Status notification sent for {sensor_id}: {status_message}"
+            log_name = "sensor_status_notification_sent"
+
+        # Log the action taken for debugging/audit purposes
         info_log_entry = {
-            "severity": "INFO",  # Changed from ALERT to INFO
-            "message": f"Status notification sent for {sensor_id}: {status_message}",
+            "severity": "INFO",
+            "message": log_message,
             "sensor_id": sensor_id,
             "sensor_set_id": sensor_set_id,
             "status": status_message,
-            "log_name": "sensor_status_notification_sent",  # Different log name
+            "log_name": log_name,
             "data_payload": reading
         }
         print(json.dumps(info_log_entry))
