@@ -44,7 +44,7 @@ class TestExportToFirestore(unittest.TestCase):
         mock_metadata_doc.to_dict.return_value = {"last_processed_timestamp_utc": "2025-07-07T12:00:00Z"}
         mock_firestore_client.return_value.collection.return_value.document.return_value.get.return_value = mock_metadata_doc
 
-        # FIX 2: Mock BigQuery query() result to include the `max_last_updated` field.
+        # Mock BigQuery query() result to include the `max_last_updated` field.
         # This is now crucial for testing the watermark logic.
         latest_update_ts = datetime(2025, 7, 7, 13, 30, 0, tzinfo=timezone.utc)
         mock_rows = [
@@ -70,7 +70,9 @@ class TestExportToFirestore(unittest.TestCase):
         mock_firestore_client.return_value.batch.return_value = mock_batch
 
         # --- Call the function ---
-        result = export_sensors_to_firestore(event={}, context={})
+        mock_request = mock.Mock()
+        mock_request.data = None  # or set to appropriate bytes for your test
+        result, status_code = export_sensors_to_firestore(mock_request)
 
         # --- Assertions ---
         mock_bigquery_client.return_value.query.assert_called_once()
@@ -107,7 +109,9 @@ class TestExportToFirestore(unittest.TestCase):
         mock_bigquery_client.return_value.query.return_value = []
 
         # --- Call the function ---
-        result = export_sensors_to_firestore(event={}, context={})
+        mock_request = mock.Mock()
+        mock_request.data = None  # or set to appropriate bytes for your test
+        result, status_code = export_sensors_to_firestore(mock_request)
 
         # --- Assertions ---
         mock_bigquery_client.return_value.query.assert_called_once()

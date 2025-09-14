@@ -1,10 +1,11 @@
 """
 main.py
 
-Proxies HTTP requests to Google Cloud Pub/Sub, validating a bearer token.
+HTTP-only proxy that forwards sensor data to Google Cloud Pub/Sub.
+Optimized for memory-constrained ESP32-C3 boards that cannot handle TLS overhead.
 
 Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4 (2025).
 Apache 2.0 Licensed as described in the file LICENSE
 """
 import os
@@ -12,19 +13,16 @@ import json
 from google.cloud import pubsub_v1
 import functions_framework
 
-
 publisher = pubsub_v1.PublisherClient()
 
-
 @functions_framework.http
-def proxy_to_pubsub(request):
+def proxy_to_pubsub_v2(request):
     """
-    HTTP Cloud Function to receive a JSON payload, validate a bearer token,
-    and publish the payload to a Pub/Sub topic.
+    HTTP Cloud Function to receive a JSON payload via HTTP (not HTTPS),
+    validate a bearer token, and publish the payload to a Pub/Sub topic.
+    Designed for ESP32-C3 boards with limited memory for TLS libraries.
     """
     # --- Read environment variables inside the function ---
-    # This ensures they are read when the function is executed,
-    # making the code testable with patched environments.
     project_id = os.environ.get("GCP_PROJECT")
     topic_id = os.environ.get("TOPIC_ID")
     secret_bearer_token = os.environ.get("SECRET_BEARER_TOKEN")
@@ -67,4 +65,3 @@ def proxy_to_pubsub(request):
     except Exception as e:
         print(f"ERROR: Failed to publish to Pub/Sub. Error: {e}")
         return ("Internal Server Error: Could not publish message.", 500)
-

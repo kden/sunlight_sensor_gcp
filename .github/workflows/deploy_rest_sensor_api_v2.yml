@@ -1,0 +1,53 @@
+# .github/workflows/deploy_rest_sensor_api_v2.yml
+#
+# Deploy the HTTP REST to Pub/Sub proxy Cloud Run Function v2
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4 (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
+name: Deploy HTTP REST to Pub/Sub Proxy Function v2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/rest_sensor_api_to_pubsub_v2/**'
+      - '.github/workflows/deploy_rest_sensor_api_v2.yml'
+
+jobs:
+  deploy:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Deploy Gen2 HTTP Cloud Function v2'
+        run: |
+          gcloud functions deploy rest-to-pubsub-proxy-v2-function \
+            --gen2 \
+            --region=us-central1 \
+            --runtime=python311 \
+            --source=./functions/rest_sensor_api_to_pubsub_v2/src \
+            --entry-point=proxy_to_pubsub_v2 \
+            --trigger-http \
+            --allow-unauthenticated \
+            --no-allow-https \
+            --service-account=${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_SENSOR_PROXY_V2_RUNTIME }} \
+            --set-env-vars=GCP_PROJECT=${{ steps.auth.outputs.project_id }},TOPIC_ID=sun-sensor-ingest-topic,SECRET_BEARER_TOKEN=${{ secrets.SENSOR_API_BEARER_TOKEN }}
