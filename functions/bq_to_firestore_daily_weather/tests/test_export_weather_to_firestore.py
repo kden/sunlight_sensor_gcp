@@ -13,12 +13,13 @@ from unittest import mock
 from datetime import date, datetime, timezone
 import os
 import sys
+import json
 
 # Add the 'src' directory to the Python path to allow imports for local testing.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
 # Now we can import the function to be tested directly.
-from functions.bq_to_firestore_daily_weather.src.main import export_weather_to_firestore, METADATA_DOC_ID, DESTINATION_COLLECTION
+from functions.bq_to_firestore_daily_weather.src.main import export_weather_to_firestore, DAILY_METADATA_DOC_ID, DAILY_DESTINATION_COLLECTION
 
 
 # A helper class to simulate the row objects returned by the BigQuery client
@@ -51,7 +52,7 @@ class TestExportWeatherToFirestore(unittest.TestCase):
         def collection_side_effect(collection_name):
             if collection_name == "bq_export_metadata":
                 return mock_metadata_collection
-            elif collection_name == DESTINATION_COLLECTION:
+            elif collection_name == DAILY_DESTINATION_COLLECTION:
                 return mock_data_collection
             # Fallback for any other collection calls
             return mock.DEFAULT
@@ -88,7 +89,9 @@ class TestExportWeatherToFirestore(unittest.TestCase):
         mock_firestore_client.return_value.batch.return_value = mock_batch
 
         # --- Call the function ---
-        result = export_weather_to_firestore(event={}, context={})
+        mock_request = mock.Mock()
+        mock_request.data = json.dumps({"export_type": "daily"}).encode('utf-8')
+        result, status_code = export_weather_to_firestore(mock_request)
 
         # --- Assertions ---
         # 1. Assert BigQuery was queried with the correct date
@@ -113,7 +116,7 @@ class TestExportWeatherToFirestore(unittest.TestCase):
         self.assertEqual(doc_data["sunrise"], datetime(2025, 7, 2, 10, 30, 0, tzinfo=timezone.utc))
 
         # 4. Assert metadata was read and updated correctly on the METADATA collection
-        mock_metadata_collection.document.assert_called_with(METADATA_DOC_ID)
+        mock_metadata_collection.document.assert_called_with(DAILY_METADATA_DOC_ID)
         mock_metadata_collection.document.return_value.set.assert_called_with({
             "last_processed_date": "2025-07-03",
             "rows_processed_in_last_run": 2,
@@ -121,7 +124,7 @@ class TestExportWeatherToFirestore(unittest.TestCase):
         })
 
         # 5. Assert the function returns a success message
-        self.assertEqual(result, "SUCCESS")
+        self.assertEqual(result, "SUCCESS: Daily: SUCCESS: Processed 2 rows.")
 
     @mock.patch("main.firestore.Client")
     @mock.patch("main.bigquery.Client")
@@ -149,7 +152,9 @@ class TestExportWeatherToFirestore(unittest.TestCase):
         mock_firestore_client.return_value.batch.return_value = mock_batch
 
         # --- Call the function ---
-        export_weather_to_firestore(event={}, context={})
+        mock_request = mock.Mock()
+        mock_request.data = json.dumps({"export_type": "daily"}).encode('utf-8')
+        result, status_code = export_weather_to_firestore(mock_request)
 
         # --- Assertions ---
         # Assert that the batch write was still called
@@ -178,7 +183,9 @@ class TestExportWeatherToFirestore(unittest.TestCase):
         mock_firestore_client.return_value.batch.return_value = mock_batch
 
         # --- Call the function ---
-        result = export_weather_to_firestore(event={}, context={})
+        mock_request = mock.Mock()
+        mock_request.data = json.dumps({"export_type": "daily"}).encode('utf-8')
+        result, status_code = export_weather_to_firestore(mock_request)
 
         # --- Assertions ---
         # Assert that no Firestore writes were attempted
@@ -189,7 +196,7 @@ class TestExportWeatherToFirestore(unittest.TestCase):
         mock_firestore_client.return_value.collection.return_value.document.return_value.set.assert_not_called()
 
         # Assert the function returns a success message
-        self.assertEqual(result, "SUCCESS")
+        self.assertEqual(result, "SUCCESS: Daily: SUCCESS: No new data.")
 
 
 if __name__ == '__main__':
