@@ -12,7 +12,7 @@ import json
 from google.cloud import pubsub_v1
 import functions_framework
 
-
+# Initialize the publisher client once globally. It's safe and efficient.
 publisher = pubsub_v1.PublisherClient()
 
 
