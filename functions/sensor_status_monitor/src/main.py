@@ -28,6 +28,7 @@ def send_pushover_notification(sensor_id, sensor_set_id, status_message, use_bat
     pushover_token = os.environ.get('PUSHOVER_APP_TOKEN')
     pushover_battery_token = os.environ.get('PUSHOVER_BATTERY_APP_TOKEN')
     pushover_user = os.environ.get('PUSHOVER_USER_KEY')
+    pushover_sound = 'pushover'
 
     if not pushover_user:
         print("ERROR: Missing Pushover configuration (PUSHOVER_USER_KEY)")
@@ -54,6 +55,7 @@ def send_pushover_notification(sensor_id, sensor_set_id, status_message, use_bat
             voltage = battery_data.get('battery_voltage', 'N/A')
             percentage = battery_data.get('battery_percent', 'N/A')
             wifi_dbm = battery_data.get('wifi_dbm', 'N/A')
+            pushover_sound = 'intermission'
 
             title = f'Battery {sensor_id}: {percentage}% ({voltage}V)'
             message = f'Sensor: {sensor_id}\nBattery: {voltage}V ({percentage}%)\nWiFi: {wifi_dbm}dBm\nSensor Set: {sensor_set_id}'
@@ -68,7 +70,7 @@ def send_pushover_notification(sensor_id, sensor_set_id, status_message, use_bat
             'title': title,
             'message': message,
             'priority': 0,  # Normal priority
-            'sound': 'pushover'  # Default notification sound
+            'sound': pushover_sound  # Default notification sound
         }
 
         # Encode data for POST request
