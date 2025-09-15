@@ -20,28 +20,53 @@ from email.mime.multipart import MIMEMultipart
 import functions_framework
 
 
-def send_pushover_notification(sensor_id, sensor_set_id, status_message):
+def send_pushover_notification(sensor_id, sensor_set_id, status_message, use_battery_token=False, battery_data=None):
     """
     Send a push notification via Pushover API.
     Free for up to 10,000 notifications per month.
     """
     pushover_token = os.environ.get('PUSHOVER_APP_TOKEN')
+    pushover_battery_token = os.environ.get('PUSHOVER_BATTERY_APP_TOKEN')
     pushover_user = os.environ.get('PUSHOVER_USER_KEY')
 
-    if not pushover_token or not pushover_user:
-        print("ERROR: Missing Pushover configuration (PUSHOVER_APP_TOKEN or PUSHOVER_USER_KEY)")
+    if not pushover_user:
+        print("ERROR: Missing Pushover configuration (PUSHOVER_USER_KEY)")
         return
+
+    # Choose the appropriate token
+    if use_battery_token:
+        if not pushover_battery_token:
+            print("ERROR: Missing PUSHOVER_BATTERY_APP_TOKEN for battery notification")
+            return
+        token = pushover_battery_token
+    else:
+        if not pushover_token:
+            print("ERROR: Missing PUSHOVER_APP_TOKEN for general notification")
+            return
+        token = pushover_token
 
     try:
         # Pushover API endpoint
         url = "https://api.pushover.net/1/messages.json"
 
+        # Create custom message and title for battery notifications
+        if use_battery_token and battery_data:
+            voltage = battery_data.get('battery_voltage', 'N/A')
+            percentage = battery_data.get('battery_percent', 'N/A')
+            wifi_dbm = battery_data.get('wifi_dbm', 'N/A')
+
+            title = f'Battery {sensor_id}: {percentage}% ({voltage}V)'
+            message = f'Sensor: {sensor_id}\nBattery: {voltage}V ({percentage}%)\nWiFi: {wifi_dbm}dBm\nSensor Set: {sensor_set_id}'
+        else:
+            title = f'Sensor {sensor_id}'
+            message = f'{status_message}\n\nSensor Set: {sensor_set_id}'
+
         # Create the message data
         data = {
-            'token': pushover_token,
+            'token': token,
             'user': pushover_user,
-            'title': f'Sensor {sensor_id}',
-            'message': f'{status_message}\n\nSensor Set: {sensor_set_id}',
+            'title': title,
+            'message': message,
             'priority': 0,  # Normal priority
             'sound': 'pushover'  # Default notification sound
         }
@@ -57,7 +82,8 @@ def send_pushover_notification(sensor_id, sensor_set_id, status_message):
             result = json.loads(response.read().decode('utf-8'))
 
         if result.get('status') == 1:
-            print(f"INFO: Pushover notification sent successfully for sensor {sensor_id}")
+            app_type = "battery" if use_battery_token else "general"
+            print(f"INFO: Pushover {app_type} notification sent successfully for sensor {sensor_id}")
         else:
             print(f"ERROR: Pushover API returned error: {result}")
 
@@ -155,14 +181,20 @@ def process_sensor_status(cloud_event):
         log_message = ""
         log_name = ""
 
-        # For battery status, only send Pushover. For others, send email and Pushover.
-        if "battery" in status_message.lower():
-            # Send Pushover notification only
-            send_pushover_notification(sensor_id, sensor_set_id, status_message)
-            log_message = f"Pushover-only notification sent for battery status from {sensor_id}: {status_message}"
+        # Check if this is a battery status message
+        if status_message == "battery":
+            # Send to battery-specific Pushover app with enhanced data
+            send_pushover_notification(
+                sensor_id,
+                sensor_set_id,
+                status_message,
+                use_battery_token=True,
+                battery_data=reading
+            )
+            log_message = f"Battery-specific Pushover notification sent for {sensor_id}: V={reading.get('battery_voltage', 'N/A')} %={reading.get('battery_percent', 'N/A')} WiFi={reading.get('wifi_dbm', 'N/A')}dBm"
             log_name = "sensor_status_battery_notification_sent"
         else:
-            # Send both email and Pushover notification
+            # Send both email and general Pushover notification for non-battery status
             send_status_notification(sensor_id, sensor_set_id, status_message)
             log_message = f"Status notification sent for {sensor_id}: {status_message}"
             log_name = "sensor_status_notification_sent"
