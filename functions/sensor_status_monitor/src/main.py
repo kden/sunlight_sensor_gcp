@@ -184,7 +184,7 @@ def process_sensor_status(cloud_event):
         log_name = ""
 
         # Check if this is a battery status message
-        if status_message == "battery":
+        if status_message == "battery" or status_message.startswith("[boot] battery") or status_message.startswith("[wake] battery"):
             # Send to battery-specific Pushover app with enhanced data
             send_pushover_notification(
                 sensor_id,
@@ -195,11 +195,15 @@ def process_sensor_status(cloud_event):
             )
             log_message = f"Battery-specific Pushover notification sent for {sensor_id}: V={reading.get('battery_voltage', 'N/A')} %={reading.get('battery_percent', 'N/A')} WiFi={reading.get('wifi_dbm', 'N/A')}dBm"
             log_name = "sensor_status_battery_notification_sent"
-        else:
-            # Send both email and general Pushover notification for non-battery status
+        elif status_message.startswith("[boot]"):
+            # Send both email and general Pushover notification for [boot] status messages only
             send_status_notification(sensor_id, sensor_set_id, status_message)
-            log_message = f"Status notification sent for {sensor_id}: {status_message}"
-            log_name = "sensor_status_notification_sent"
+            log_message = f"Boot status notification sent for {sensor_id}: {status_message}"
+            log_name = "sensor_status_boot_notification_sent"
+        else:
+            # Skip email/pushover notifications for non-boot status messages
+            log_message = f"Non-boot status message skipped for {sensor_id}: {status_message}"
+            log_name = "sensor_status_message_skipped"
 
         # Log the action taken for debugging/audit purposes
         info_log_entry = {
