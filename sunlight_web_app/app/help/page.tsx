@@ -65,6 +65,13 @@ export default function HelpPage() {
               <li>Finally, every 15 minutes a scheduled function downsamples and transfers that data to Firestore where it is used by the web app.</li>
             </ol>
           </dd>
+          <dt className="mt-6 font-semibold text-amber-200">
+            Q: What do the x and y coordinates of the sensors and heatmap represent?
+          </dt>
+          <dd className="mt-2 pl-2 text-white">
+            <a href="https://kden.github.io/sunlight-sensor/Site.html">The lot was laid out in a grid</a> from the southern corner of the lot.  However, it fits on the screen much better if it is rotated 90 degrees.  As a result, you will find that the Y-axis on the heatmap is numbered from 33 feet to 0 feet instead of 0 to 33.
+          </dd>
+
         </dl>
       </div>
     </div>

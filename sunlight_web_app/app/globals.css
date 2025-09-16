@@ -38,3 +38,13 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+main a {
+  color: rgb(251 191 36);
+}
+
+main a:hover {
+  color: rgb(245 158 11);
+}
+
+

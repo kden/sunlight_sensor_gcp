@@ -234,16 +234,16 @@ const SensorHeatmapChart: React.FC<SensorHeatmapChartProps> = ({ chartData, yard
                                     {/* Tick mark */}
                                     <line
                                         x1={marginLeft - AXIS_TICK_LENGTH}
-                                        y1={marginTop + yardWidth - y}
+                                        y1={marginTop + y}  // Change this line
                                         x2={marginLeft}
-                                        y2={marginTop + yardWidth - y}
+                                        y2={marginTop + y}  // Change this line
                                         stroke="rgb(203, 213, 225)"
                                         strokeWidth={AXIS_TICK_WIDTH}
                                     />
                                     {/* Label */}
                                     <text
                                         x={marginLeft - AXIS_TICK_LENGTH - AXIS_LABEL_OFFSET}
-                                        y={marginTop + yardWidth - y}
+                                        y={marginTop + y}  // Change this line
                                         textAnchor="end"
                                         dominantBaseline="middle"
                                     >
