@@ -25,73 +25,73 @@ def send_pushover_notification(sensor_id, sensor_set_id, status_message, use_bat
     Send a push notification via Pushover API.
     Free for up to 10,000 notifications per month.
     """
-    pushover_token = os.environ.get('PUSHOVER_APP_TOKEN')
-    pushover_battery_token = os.environ.get('PUSHOVER_BATTERY_APP_TOKEN')
-    pushover_user = os.environ.get('PUSHOVER_USER_KEY')
-    pushover_sound = 'pushover'
-
-    if not pushover_user:
-        print("ERROR: Missing Pushover configuration (PUSHOVER_USER_KEY)")
-        return
-
-    # Choose the appropriate token
-    if use_battery_token:
-        if not pushover_battery_token:
-            print("ERROR: Missing PUSHOVER_BATTERY_APP_TOKEN for battery notification")
-            return
-        token = pushover_battery_token
-    else:
-        if not pushover_token:
-            print("ERROR: Missing PUSHOVER_APP_TOKEN for general notification")
-            return
-        token = pushover_token
-
-    try:
-        # Pushover API endpoint
-        url = "https://api.pushover.net/1/messages.json"
-
-        # Create custom message and title for battery notifications
-        if use_battery_token and battery_data:
-            voltage = battery_data.get('battery_voltage', 'N/A')
-            percentage = battery_data.get('battery_percent', 'N/A')
-            wifi_dbm = battery_data.get('wifi_dbm', 'N/A')
-            pushover_sound = 'intermission'
-
-            title = f'Battery {sensor_id}: {percentage}% ({voltage}V)'
-            message = f'Sensor: {sensor_id}\nBattery: {voltage}V ({percentage}%)\nWiFi: {wifi_dbm}dBm\nSensor Set: {sensor_set_id}'
-        else:
-            title = f'Sensor {sensor_id}'
-            message = f'{status_message}\n\nSensor Set: {sensor_set_id}'
-
-        # Create the message data
-        data = {
-            'token': token,
-            'user': pushover_user,
-            'title': title,
-            'message': message,
-            'priority': 0,  # Normal priority
-            'sound': pushover_sound  # Default notification sound
-        }
-
-        # Encode data for POST request
-        encoded_data = urllib.parse.urlencode(data).encode('utf-8')
-
-        # Create and send request
-        req = urllib.request.Request(url, data=encoded_data)
-        req.add_header('Content-Type', 'application/x-www-form-urlencoded')
-
-        with urllib.request.urlopen(req) as response:
-            result = json.loads(response.read().decode('utf-8'))
-
-        if result.get('status') == 1:
-            app_type = "battery" if use_battery_token else "general"
-            print(f"INFO: Pushover {app_type} notification sent successfully for sensor {sensor_id}")
-        else:
-            print(f"ERROR: Pushover API returned error: {result}")
-
-    except Exception as e:
-        print(f"ERROR: Failed to send Pushover notification: {e}")
-
+    # pushover_token = os.environ.get('PUSHOVER_APP_TOKEN')
+    # pushover_battery_token = os.environ.get('PUSHOVER_BATTERY_APP_TOKEN')
+    # pushover_user = os.environ.get('PUSHOVER_USER_KEY')
+    # pushover_sound = 'pushover'
+    #
+    # if not pushover_user:
+    #     print("ERROR: Missing Pushover configuration (PUSHOVER_USER_KEY)")
+    #     return
+    #
+    # # Choose the appropriate token
+    # if use_battery_token:
+    #     if not pushover_battery_token:
+    #         print("ERROR: Missing PUSHOVER_BATTERY_APP_TOKEN for battery notification")
+    #         return
+    #     token = pushover_battery_token
+    # else:
+    #     if not pushover_token:
+    #         print("ERROR: Missing PUSHOVER_APP_TOKEN for general notification")
+    #         return
+    #     token = pushover_token
+    #
+    # try:
+    #     # Pushover API endpoint
+    #     url = "https://api.pushover.net/1/messages.json"
+    #
+    #     # Create custom message and title for battery notifications
+    #     if use_battery_token and battery_data:
+    #         voltage = battery_data.get('battery_voltage', 'N/A')
+    #         percentage = battery_data.get('battery_percent', 'N/A')
+    #         wifi_dbm = battery_data.get('wifi_dbm', 'N/A')
+    #         pushover_sound = 'intermission'
+    #
+    #         title = f'Battery {sensor_id}: {percentage}% ({voltage}V)'
+    #         message = f'Sensor: {sensor_id}\nBattery: {voltage}V ({percentage}%)\nWiFi: {wifi_dbm}dBm\nSensor Set: {sensor_set_id}'
+    #     else:
+    #         title = f'Sensor {sensor_id}'
+    #         message = f'{status_message}\n\nSensor Set: {sensor_set_id}'
+    #
+    #     # Create the message data
+    #     data = {
+    #         'token': token,
+    #         'user': pushover_user,
+    #         'title': title,
+    #         'message': message,
+    #         'priority': 0,  # Normal priority
+    #         'sound': pushover_sound  # Default notification sound
+    #     }
+    #
+    #     # Encode data for POST request
+    #     encoded_data = urllib.parse.urlencode(data).encode('utf-8')
+    #
+    #     # Create and send request
+    #     req = urllib.request.Request(url, data=encoded_data)
+    #     req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+    #
+    #     with urllib.request.urlopen(req) as response:
+    #         result = json.loads(response.read().decode('utf-8'))
+    #
+    #     if result.get('status') == 1:
+    #         app_type = "battery" if use_battery_token else "general"
+    #         print(f"INFO: Pushover {app_type} notification sent successfully for sensor {sensor_id}")
+    #     else:
+    #         print(f"ERROR: Pushover API returned error: {result}")
+    #
+    # except Exception as e:
+    #     print(f"ERROR: Failed to send Pushover notification: {e}")
+    pass
 
 def send_status_notification(sensor_id, sensor_set_id, status_message):
     """
