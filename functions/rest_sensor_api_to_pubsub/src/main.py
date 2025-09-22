@@ -23,8 +23,6 @@ def proxy_to_pubsub(request):
     and publish the payload to a Pub/Sub topic.
     """
     # --- Read environment variables inside the function ---
-    # This ensures they are read when the function is executed,
-    # making the code testable with patched environments.
     project_id = os.environ.get("GCP_PROJECT")
     topic_id = os.environ.get("TOPIC_ID")
     secret_bearer_token = os.environ.get("SECRET_BEARER_TOKEN")
@@ -42,22 +40,61 @@ def proxy_to_pubsub(request):
         print(f"WARN: Unauthorized access attempt. Provided token: {auth_header}")
         return ("Unauthorized: Invalid or missing bearer token.", 401)
 
-    # --- JSON Payload Validation ---
+    # --- Content Type Check ---
     if request.content_type != 'application/json':
+        print(f"WARN: Invalid content type: {request.content_type}")
         return ("Bad Request: Content-Type must be application/json.", 400)
 
+    # --- Log Raw Request Body for Debugging ---
+    try:
+        raw_body = request.get_data(as_text=True)
+        print(f"DEBUG: Raw request body (length {len(raw_body)}): {raw_body}")
+    except Exception as e:
+        print(f"ERROR: Could not read raw request body: {e}")
+        return ("Bad Request: Could not read request body.", 400)
+
+    # --- JSON Payload Validation ---
     try:
         data = request.get_json(silent=True)
-        if not isinstance(data, list):
-            return ("Bad Request: JSON body must be a list of sensor readings.", 400)
+        print(f"DEBUG: Parsed JSON type: {type(data)}")
+
+        if data is None:
+            print("ERROR: JSON parsing returned None")
+            return ("Bad Request: Invalid JSON format.", 400)
+
+        # Log the structure for debugging
+        if isinstance(data, list):
+            print(f"DEBUG: Received array with {len(data)} items")
+            if len(data) > 0:
+                print(f"DEBUG: First item keys: {list(data[0].keys()) if isinstance(data[0], dict) else 'Not a dict'}")
+        elif isinstance(data, dict):
+            print(f"DEBUG: Received single object with keys: {list(data.keys())}")
+        else:
+            print(f"DEBUG: Received unexpected data type: {type(data)}")
+
+        # Accept both arrays and single objects (convert single to array)
+        if isinstance(data, dict):
+            print("INFO: Converting single object to array")
+            data = [data]
+        elif not isinstance(data, list):
+            print(f"ERROR: JSON body must be a list or object, got {type(data)}")
+            return ("Bad Request: JSON body must be a list of sensor readings or a single object.", 400)
+
     except Exception as e:
         print(f"ERROR: Could not parse JSON. Error: {e}")
         return ("Bad Request: Invalid JSON format.", 400)
+
+    # --- Additional Validation for Arrays ---
+    if len(data) == 0:
+        print("WARN: Received empty array")
+        return ("Bad Request: Empty array not allowed.", 400)
 
     # --- Publish to Pub/Sub ---
     try:
         topic_path = publisher.topic_path(project_id, topic_id)
         message_data = json.dumps(data).encode("utf-8")
+        print(f"DEBUG: Publishing message of {len(message_data)} bytes to {topic_path}")
+
         future = publisher.publish(topic_path, data=message_data)
         message_id = future.result(timeout=10)
 
@@ -67,4 +104,3 @@ def proxy_to_pubsub(request):
     except Exception as e:
         print(f"ERROR: Failed to publish to Pub/Sub. Error: {e}")
         return ("Internal Server Error: Could not publish message.", 500)
-
