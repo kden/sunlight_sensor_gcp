@@ -38,6 +38,26 @@ jobs:
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
 
+      - name: 'Install Astra CLI'
+        run: |
+          curl -Ls "https://dtsx.io/get-astra-cli" | bash
+          echo "$HOME/.astra/cli" >> $GITHUB_PATH
+
+      - name: 'Configure Astra CLI'
+        env:
+          ASTRA_TOKEN: ${{ secrets.ASTRA_TOKEN }}
+        run: |
+          astra setup --token "${ASTRA_TOKEN}"
+
+      - name: 'Get Secure Bundle URL'
+        id: get_bundle
+        env:
+          ASTRA_DB_ID: ${{ secrets.ASTRA_DB_ID }}
+        run: |
+          # Get the secure bundle URL from Astra
+          BUNDLE_URL=$(astra db download-scb ${{ secrets.ASTRA_DB_ID }} --output json | jq -r '.downloadURL')
+          echo "bundle_url=${BUNDLE_URL}" >> $GITHUB_OUTPUT
+
       - name: 'Deploy Gen2 Cloud Function'
         run: |
           gcloud functions deploy pubsub-to-cassandra-writer \
@@ -48,6 +68,6 @@ jobs:
             --entry-point=write_to_cassandra \
             --trigger-topic=sun-sensor-ingest-topic \
             --service-account=${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_CASSANDRA_WRITER_RUNTIME }} \
-            --set-env-vars="ASTRA_CLIENT_ID=${{ secrets.ASTRA_CLIENT_ID }},ASTRA_CLIENT_SECRET=${{ secrets.ASTRA_CLIENT_SECRET }},ASTRA_SECURE_BUNDLE_URL=${{ secrets.ASTRA_SECURE_BUNDLE_URL }},ASTRA_KEYSPACE=sunlight_data" \
+            --set-env-vars="ASTRA_CLIENT_ID=${{ secrets.ASTRA_CLIENT_ID }},ASTRA_CLIENT_SECRET=${{ secrets.ASTRA_CLIENT_SECRET }},ASTRA_SECURE_BUNDLE_URL=${{ steps.get_bundle.outputs.bundle_url }},ASTRA_KEYSPACE=sunlight_data" \
             --timeout=60s \
             --memory=256Mi

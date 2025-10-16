@@ -8,152 +8,149 @@
 
 # Raw sensor data table - optimized for time-series writes
 resource "astra_table" "raw_sensor_data" {
-  table       = "raw_sensor_data"
-  keyspace    = astra_database.sunlight_db.keyspace
-  database_id = astra_database.sunlight_db.id
-  region      = "us-east1"
-
+  table              = "raw_sensor_data"
+  keyspace           = astra_database.sunlight_db.keyspace
+  database_id        = astra_database.sunlight_db.id
+  region             = astra_database.sunlight_db.regions[0]
   clustering_columns = "timestamp:desc"
   partition_keys     = "sensor_id"
 
   column_definitions = [
     {
-      name   = "sensor_id"
-      type   = "text"
-      static = "false"
+      Name : "sensor_id"
+      Static : false
+      TypeDefinition : "text"
     },
     {
-      name   = "timestamp"
-      type   = "timestamp"
-      static = "false"
+      Name : "timestamp"
+      Static : false
+      TypeDefinition : "timestamp"
     },
     {
-      name   = "sensor_set_id"
-      type   = "text"
-      static = "false"
+      Name : "sensor_set_id"
+      Static : false
+      TypeDefinition : "text"
     },
     {
-      name   = "light_intensity"
-      type   = "double"
-      static = "false"
+      Name : "light_intensity"
+      Static : false
+      TypeDefinition : "double"
     },
     {
-      name   = "ingestion_time"
-      type   = "timestamp"
-      static = "false"
+      Name : "ingestion_time"
+      Static : false
+      TypeDefinition : "timestamp"
     },
     {
-      name   = "status"
-      type   = "text"
-      static = "false"
+      Name : "status"
+      Static : false
+      TypeDefinition : "text"
     },
     {
-      name   = "battery_voltage"
-      type   = "double"
-      static = "false"
+      Name : "battery_voltage"
+      Static : false
+      TypeDefinition : "double"
     },
     {
-      name   = "battery_percent"
-      type   = "int"
-      static = "false"
+      Name : "battery_percent"
+      Static : false
+      TypeDefinition : "int"
     },
     {
-      name   = "wifi_dbm"
-      type   = "int"
-      static = "false"
+      Name : "wifi_dbm"
+      Static : false
+      TypeDefinition : "int"
     }
   ]
 }
 
 # Sensor metadata table
 resource "astra_table" "sensor_metadata" {
-  table       = "sensor_metadata"
-  keyspace    = astra_database.sunlight_db.keyspace
-  database_id = astra_database.sunlight_db.id
-  region      = "us-east1"
-
+  table              = "sensor_metadata"
+  keyspace           = astra_database.sunlight_db.keyspace
+  database_id        = astra_database.sunlight_db.id
+  region             = astra_database.sunlight_db.regions[0]
   clustering_columns = ""
   partition_keys     = "sensor_id"
 
   column_definitions = [
     {
-      name   = "sensor_id"
-      type   = "text"
-      static = "false"
+      Name : "sensor_id"
+      Static : false
+      TypeDefinition : "text"
     },
     {
-      name   = "sensor_set_id"
-      type   = "text"
-      static = "false"
+      Name : "sensor_set_id"
+      Static : false
+      TypeDefinition : "text"
     },
     {
-      name   = "position_x_ft"
-      type   = "double"
-      static = "false"
+      Name : "position_x_ft"
+      Static : false
+      TypeDefinition : "double"
     },
     {
-      name   = "position_y_ft"
-      type   = "double"
-      static = "false"
+      Name : "position_y_ft"
+      Static : false
+      TypeDefinition : "double"
     },
     {
-      name   = "board"
-      type   = "text"
-      static = "false"
+      Name : "board"
+      Static : false
+      TypeDefinition : "text"
     },
     {
-      name   = "has_display"
-      type   = "boolean"
-      static = "false"
+      Name : "has_display"
+      Static : false
+      TypeDefinition : "boolean"
     },
     {
-      name   = "sunlight_sensor_model"
-      type   = "text"
-      static = "false"
+      Name : "sunlight_sensor_model"
+      Static : false
+      TypeDefinition : "text"
     },
     {
-      name   = "display_model"
-      type   = "text"
-      static = "false"
+      Name : "display_model"
+      Static : false
+      TypeDefinition : "text"
     },
     {
-      name   = "wifi_antenna"
-      type   = "text"
-      static = "false"
+      Name : "wifi_antenna"
+      Static : false
+      TypeDefinition : "text"
     }
   ]
 }
 
 # Sensor set metadata table
 resource "astra_table" "sensor_set_metadata" {
-  table       = "sensor_set_metadata"
-  keyspace    = astra_database.sunlight_db.keyspace
-  database_id = astra_database.sunlight_db.id
-  region      = "us-east1"
-
+  table              = "sensor_set_metadata"
+  keyspace           = astra_database.sunlight_db.keyspace
+  database_id        = astra_database.sunlight_db.id
+  region             = astra_database.sunlight_db.regions[0]
   clustering_columns = ""
   partition_keys     = "sensor_set_id"
 
   column_definitions = [
     {
-      name   = "sensor_set_id"
-      type   = "text"
-      static = "false"
+      Name : "sensor_set_id"
+      Static : false
+      TypeDefinition : "text"
     },
     {
-      name   = "timezone"
-      type   = "text"
-      static = "false"
+      Name : "timezone"
+      Static : false
+      TypeDefinition : "text"
     },
     {
-      name   = "latitude"
-      type   = "double"
-      static = "false"
+      Name : "latitude"
+      Static : false
+      TypeDefinition : "double"
     },
     {
-      name   = "longitude"
-      type   = "double"
-      static = "false"
+      Name : "longitude"
+      Static : false
+      TypeDefinition : "double"
     }
   ]
 }

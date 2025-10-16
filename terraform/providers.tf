@@ -13,7 +13,7 @@ terraform {
     }
     astra = {
       source  = "datastax/astra"
-      version = "~> 2.3"
+      version = "~> 2.3.18"
     }
   }
 }
