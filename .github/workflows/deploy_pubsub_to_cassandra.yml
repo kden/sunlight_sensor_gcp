@@ -3,7 +3,7 @@
 # Deploy the Pub/Sub to Cassandra writer Cloud Run Function
 #
 # Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4 (2025).
+# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4.5 (2025).
 # Apache 2.0 Licensed as described in the file LICENSE
 
 name: Deploy Pub/Sub to Cassandra Writer
@@ -43,7 +43,7 @@ jobs:
 
       - name: 'Install Astra CLI'
         run: |
-          curl -Ls "https://dtsx.io/get-astra-cli" | bash
+          curl -Ls "https://dtsx.io/get-astra-cli" | bash || true
           echo "$HOME/.astra/cli" >> $GITHUB_PATH
 
       - name: 'Get Secure Bundle URL'
@@ -52,6 +52,9 @@ jobs:
           ASTRA_DB_APPLICATION_TOKEN: ${{ secrets.ASTRA_TOKEN }}
           ASTRA_DB_ID: ${{ secrets.ASTRA_DB_ID }}
         run: |
+          # Verify CLI is installed
+          ls -la $HOME/.astra/cli/
+          
           # Get the secure bundle download URL from Astra
           BUNDLE_URL=$($HOME/.astra/cli/astra db get $ASTRA_DB_ID --token $ASTRA_DB_APPLICATION_TOKEN --output json | jq -r '.info.datacenters[0].secureBundleUrl')
           echo "bundle_url=${BUNDLE_URL}" >> $GITHUB_OUTPUT
