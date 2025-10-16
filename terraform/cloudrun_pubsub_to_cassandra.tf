@@ -13,9 +13,6 @@ resource "google_service_account" "pubsub_to_cassandra_sa" {
   display_name = "Pub/Sub to Cassandra Writer SA"
 }
 
-# Grant permission to read from Pub/Sub (implicit through Cloud Functions)
-# No additional IAM needed for the Pub/Sub trigger itself
-
 # Allow the deployer to act as this service account
 resource "google_service_account_iam_member" "deployer_act_as_cassandra_writer" {
   service_account_id = google_service_account.pubsub_to_cassandra_sa.name
@@ -24,13 +21,22 @@ resource "google_service_account_iam_member" "deployer_act_as_cassandra_writer" 
 }
 
 # Grant Pub/Sub the ability to invoke the Cloud Run service
-# This is critical for Gen2 Cloud Functions triggered by Pub/Sub
 resource "google_cloud_run_service_iam_member" "pubsub_invoker" {
   project  = var.gcp_project_id
   location = var.region
   service  = "pubsub-to-cassandra-writer"
   role     = "roles/run.invoker"
   member   = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+# Grant the runtime service account permission to invoke itself
+# This is needed because Eventarc uses this SA to authenticate the push subscription
+resource "google_cloud_run_service_iam_member" "runtime_self_invoker" {
+  project  = var.gcp_project_id
+  location = var.region
+  service  = "pubsub-to-cassandra-writer"
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.pubsub_to_cassandra_sa.email}"
 }
 
 # Create a dedicated Service Account for manual invocation (testing)
