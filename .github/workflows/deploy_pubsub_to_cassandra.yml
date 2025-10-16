@@ -18,6 +18,9 @@ on:
 
 jobs:
   deploy:
+    env:
+      TERM: linux
+
     permissions:
       contents: 'read'
       id-token: 'write'
@@ -43,20 +46,16 @@ jobs:
           curl -Ls "https://dtsx.io/get-astra-cli" | bash
           echo "$HOME/.astra/cli" >> $GITHUB_PATH
 
-      - name: 'Configure Astra CLI'
-        env:
-          ASTRA_TOKEN: ${{ secrets.ASTRA_TOKEN }}
-        run: |
-          astra setup --token "${ASTRA_TOKEN}"
-
       - name: 'Get Secure Bundle URL'
         id: get_bundle
         env:
+          ASTRA_DB_APPLICATION_TOKEN: ${{ secrets.ASTRA_TOKEN }}
           ASTRA_DB_ID: ${{ secrets.ASTRA_DB_ID }}
         run: |
-          # Get the secure bundle URL from Astra
-          BUNDLE_URL=$(astra db download-scb ${{ secrets.ASTRA_DB_ID }} --output json | jq -r '.downloadURL')
+          # Get the secure bundle download URL from Astra
+          BUNDLE_URL=$($HOME/.astra/cli/astra db get $ASTRA_DB_ID --token $ASTRA_DB_APPLICATION_TOKEN --output json | jq -r '.info.datacenters[0].secureBundleUrl')
           echo "bundle_url=${BUNDLE_URL}" >> $GITHUB_OUTPUT
+          echo "Bundle URL retrieved: ${BUNDLE_URL}"
 
       - name: 'Deploy Gen2 Cloud Function'
         run: |
