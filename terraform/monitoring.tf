@@ -17,6 +17,13 @@ resource "google_monitoring_notification_channel" "email_channel" {
   labels = {
     email_address = var.alert_email_address
   }
+
+  lifecycle {
+    # Prevent recreation when only metadata changes
+    ignore_changes = [
+      user_labels,
+    ]
+  }
 }
 
 resource "google_monitoring_notification_channel" "sms_channel" {
@@ -25,6 +32,13 @@ resource "google_monitoring_notification_channel" "sms_channel" {
   type         = "sms"
   labels = {
     number = var.alert_phone_number
+  }
+
+  lifecycle {
+    # Prevent recreation when only metadata changes
+    ignore_changes = [
+      user_labels,
+    ]
   }
 }
 
@@ -58,6 +72,13 @@ resource "google_logging_metric" "sensor_ping_count" {
     "sensor_id"     = "EXTRACT(jsonPayload.sensor_id)"
     "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
   }
+
+  lifecycle {
+    # Prevent recreation if only metadata changes
+    ignore_changes = [
+      bucket_options,
+    ]
+  }
 }
 
 # Metric 2: Count data point events, weighted by the number of points (alternative approach)
@@ -88,6 +109,13 @@ resource "google_logging_metric" "sensor_data_points" {
   label_extractors = {
     "sensor_id"     = "EXTRACT(jsonPayload.sensor_id)"
     "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
+  }
+
+  lifecycle {
+    # Prevent recreation if only metadata changes
+    ignore_changes = [
+      bucket_options,
+    ]
   }
 }
 

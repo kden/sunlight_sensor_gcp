@@ -101,6 +101,7 @@ jobs:
           --source: ./functions/pubsub_to_cassandra/src
           --entry-point: write_to_cassandra
           --trigger-topic: sun-sensor-ingest-topic
+          --trigger-service-account: ${SERVICE_ACCOUNT}
           --service-account: ${SERVICE_ACCOUNT}
           --set-env-vars:
             ASTRA_CLIENT_ID: ${ASTRA_CLIENT_ID}
