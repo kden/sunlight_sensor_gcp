@@ -3,7 +3,7 @@
 # Defines roles and accounts for deployment of cloud run functions
 #
 # Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-# Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
+# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4.5 (2025).
 # Apache 2.0 Licensed as described in the file LICENSE
 
 # --- Service Account for Cloud Function Deployment ---
@@ -12,7 +12,6 @@ resource "google_service_account" "function_deployer" {
   account_id   = "function-deployer"
   display_name = "GitHub Actions Function Deployer"
 }
-
 
 # It looks like Cloud Build impersonates the default service account during build phase, so it's currently
 # going to cause an error if we revoke this permission.  We can look into creating (yet another) service account
@@ -30,9 +29,9 @@ resource "google_project_iam_member" "function_deployer_functions_admin" {
   member  = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
-# --- Allow Function Deployer SA to act as the Function Runtime SA ---
-resource "google_service_account_iam_member" "function_deployer_act_as_runtime" {
-  service_account_id = google_service_account.function_runtime.name
+# --- Allow Function Deployer SA to act as the Sensor Monitor Runtime SA ---
+resource "google_service_account_iam_member" "function_deployer_act_as_sensor_monitor_runtime" {
+  service_account_id = google_service_account.sensor_monitor_runtime_sa.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.function_deployer.email}"
 }
@@ -70,33 +69,33 @@ resource "google_project_iam_member" "function_deployer_storage_admin" {
   member  = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
-# --- Service Account for Cloud Function Runtime ---
-resource "google_service_account" "function_runtime" {
+# --- Service Account for Sensor Monitor Function Runtime ---
+resource "google_service_account" "sensor_monitor_runtime_sa" {
   project      = var.gcp_project_id
-  account_id   = "function-runtime"
-  display_name = "Cloud Function Runtime Service Account"
+  account_id   = "sensor-monitor-runtime-sa"
+  display_name = "Sensor Monitor Function Runtime Service Account"
 }
 
-resource "google_project_iam_member" "function_runtime_logging" {
+resource "google_project_iam_member" "sensor_monitor_runtime_logging" {
   project = var.gcp_project_id
   role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.function_runtime.email}"
+  member  = "serviceAccount:${google_service_account.sensor_monitor_runtime_sa.email}"
 }
 
-resource "google_project_iam_member" "function_runtime_pubsub" {
+resource "google_project_iam_member" "sensor_monitor_runtime_pubsub" {
   project = var.gcp_project_id
   role    = "roles/pubsub.subscriber"
-  member  = "serviceAccount:${google_service_account.function_runtime.email}"
+  member  = "serviceAccount:${google_service_account.sensor_monitor_runtime_sa.email}"
 }
 
 # Eventarc forwards Pub/Sub messages to trigger the Cloud Run-based function.
-resource "google_cloud_run_service_iam_member" "function_runtime_invoker" {
+resource "google_cloud_run_service_iam_member" "sensor_monitor_runtime_invoker" {
   location = "us-central1"
   project  = var.gcp_project_id
   service  = "sensor-status-monitor-function"
 
   role   = "roles/run.invoker"
-  member = "serviceAccount:${google_service_account.function_runtime.email}"
+  member = "serviceAccount:${google_service_account.sensor_monitor_runtime_sa.email}"
 }
 
 # --- Outputs ---
@@ -105,7 +104,7 @@ output "function_deployer_email" {
   description = "The email of the service account for deploying Cloud Functions (GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS)."
 }
 
-output "function_runtime_email" {
-  value       = google_service_account.function_runtime.email
-  description = "The email of the service account for deploying Cloud Functions (GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS)."
+output "sensor_monitor_runtime_email" {
+  value       = google_service_account.sensor_monitor_runtime_sa.email
+  description = "The email of the runtime service account for the sensor monitor function (GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME)."
 }

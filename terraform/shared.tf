@@ -77,19 +77,6 @@ variable "alert_phone_number" {
   sensitive   = true
 }
 
-
-# --- Shared GCS Bucket for Function Source Code ---
-# This bucket is kept here to satisfy dependencies from other Terraform files
-# (like cloudrun_generate_test_pattern.tf). It is no longer used for deploying
-# this specific proxy function, as that is now handled by GitHub Actions.
-resource "google_storage_bucket" "cloudrun_function_source_shared_bucket" {
-  project                     = var.gcp_project_id
-  name                        = "${var.gcp_project_id}-cloudrun-source"
-  location                    = var.region
-  force_destroy               = true
-  uniform_bucket_level_access = true
-}
-
 variable "astra_token" {
   type        = string
   description = "Datastax Astra authentication token"

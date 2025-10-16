@@ -3,7 +3,7 @@
 # Deploy the sensor status monitor Cloud Run Function
 #
 # Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4 (2025).
+# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4.5 (2025).
 # Apache 2.0 Licensed as described in the file LICENSE
 
 name: Deploy Sensor Status Monitor Function
@@ -44,19 +44,6 @@ jobs:
           token_format: 'access_token'
           create_credentials_file: true
 
-#      - name: 'Debug authentication and service accounts'
-#        run: |
-#          echo "=== Current gcloud configuration ==="
-#          gcloud config list
-#          echo "=== Current authenticated account ==="
-#          gcloud auth list --format="value(account)"
-#          echo "=== Available service accounts in project ==="
-#          gcloud iam service-accounts list
-#          echo "=== Testing if runtime service account exists ==="
-#          gcloud iam service-accounts describe ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME }} || echo "Runtime SA not found"
-#          echo "=== Project number ==="
-#          gcloud projects describe $(gcloud config get-value project) --format="value(projectNumber)"
-
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
         with:
@@ -68,7 +55,7 @@ jobs:
       - name: 'Deploy Gen2 Cloud Function'
         env:
           CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
-          RUNTIME_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME }}
+          RUNTIME_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_SENSOR_MONITOR_RUNTIME }}
         run: |
           gcloud functions deploy sensor-status-monitor-function \
             --gen2 \
