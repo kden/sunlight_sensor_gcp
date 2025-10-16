@@ -89,3 +89,9 @@ resource "google_storage_bucket" "cloudrun_function_source_shared_bucket" {
   force_destroy               = true
   uniform_bucket_level_access = true
 }
+
+variable "astra_token" {
+  type        = string
+  description = "Datastax Astra authentication token"
+  sensitive   = true
+}

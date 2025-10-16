@@ -1,0 +1,53 @@
+# .github/workflows/deploy_pubsub_to_cassandra.yml
+#
+# Deploy the Pub/Sub to Cassandra writer Cloud Run Function
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4 (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
+name: Deploy Pub/Sub to Cassandra Writer
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/pubsub_to_cassandra/**'
+      - '.github/workflows/deploy_pubsub_to_cassandra.yml'
+
+jobs:
+  deploy:
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Deploy Gen2 Cloud Function'
+        run: |
+          gcloud functions deploy pubsub-to-cassandra-writer \
+            --gen2 \
+            --region=us-central1 \
+            --runtime=python311 \
+            --source=./functions/pubsub_to_cassandra/src \
+            --entry-point=write_to_cassandra \
+            --trigger-topic=sun-sensor-ingest-topic \
+            --service-account=${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_CASSANDRA_WRITER_RUNTIME }} \
+            --set-env-vars="ASTRA_CLIENT_ID=${{ secrets.ASTRA_CLIENT_ID }},ASTRA_CLIENT_SECRET=${{ secrets.ASTRA_CLIENT_SECRET }},ASTRA_SECURE_BUNDLE_URL=${{ secrets.ASTRA_SECURE_BUNDLE_URL }},ASTRA_KEYSPACE=sunlight_data" \
+            --timeout=60s \
+            --memory=256Mi

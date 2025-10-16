@@ -11,5 +11,16 @@ terraform {
       source  = "hashicorp/google-beta"
       version = ">= 6.42.0"
     }
+    astra = {
+      source  = "datastax/astra"
+      version = "~> 2.3"
+    }
   }
+}
+
+
+provider "astra" {
+  # Authentication token from Astra
+  # Get this from: https://astra.datastax.com/settings/tokens
+  token = var.astra_token
 }
