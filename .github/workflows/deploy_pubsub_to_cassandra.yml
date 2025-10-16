@@ -70,7 +70,8 @@ jobs:
           
           # Check if output is valid JSON before parsing
           if echo "$OUTPUT" | jq empty 2>/dev/null; then
-            BUNDLE_URL=$(echo "$OUTPUT" | jq -r '.info.datacenters[0].secureBundleUrl')
+            # Note the corrected path: .data.info.datacenters[0].secureBundleUrl
+            BUNDLE_URL=$(echo "$OUTPUT" | jq -r '.data.info.datacenters[0].secureBundleUrl')
           
             if [ -z "$BUNDLE_URL" ] || [ "$BUNDLE_URL" = "null" ]; then
               echo "Error: Could not extract secure bundle URL from response"
