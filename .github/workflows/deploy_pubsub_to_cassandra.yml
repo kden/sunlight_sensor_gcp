@@ -49,7 +49,7 @@ jobs:
       - name: 'Get Secure Bundle URL'
         id: get_bundle
         env:
-          ASTRA_DB_APPLICATION_TOKEN: ${{ secrets.ASTRA_TOKEN }}
+          ASTRA_DB_APPLICATION_TOKEN: ${{ secrets.ASTRA_DB_APPLICATION_TOKEN }}
           ASTRA_DB_ID: ${{ secrets.ASTRA_DB_ID }}
         run: |
           # Verify CLI is installed
