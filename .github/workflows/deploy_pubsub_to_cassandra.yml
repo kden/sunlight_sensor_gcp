@@ -55,10 +55,36 @@ jobs:
           # Verify CLI is installed
           ls -la $HOME/.astra/cli/
           
-          # Get the secure bundle download URL from Astra
-          BUNDLE_URL=$($HOME/.astra/cli/astra db get $ASTRA_DB_ID --token $ASTRA_DB_APPLICATION_TOKEN --output json | jq -r '.info.datacenters[0].secureBundleUrl')
-          echo "bundle_url=${BUNDLE_URL}" >> $GITHUB_OUTPUT
-          echo "Bundle URL retrieved: ${BUNDLE_URL}"
+          # Get the secure bundle download URL from Astra with better error handling
+          echo "Attempting to retrieve database information..."
+          
+          # Capture the full output for debugging
+          OUTPUT=$($HOME/.astra/cli/astra db get $ASTRA_DB_ID --token $ASTRA_DB_APPLICATION_TOKEN --output json 2>&1) || {
+            echo "Error: Failed to get database information"
+            echo "Output was: $OUTPUT"
+            exit 1
+          }
+          
+          echo "Raw output from astra CLI:"
+          echo "$OUTPUT"
+          
+          # Check if output is valid JSON before parsing
+          if echo "$OUTPUT" | jq empty 2>/dev/null; then
+            BUNDLE_URL=$(echo "$OUTPUT" | jq -r '.info.datacenters[0].secureBundleUrl')
+          
+            if [ -z "$BUNDLE_URL" ] || [ "$BUNDLE_URL" = "null" ]; then
+              echo "Error: Could not extract secure bundle URL from response"
+              echo "Full response: $OUTPUT"
+              exit 1
+            fi
+          
+            echo "bundle_url=${BUNDLE_URL}" >> $GITHUB_OUTPUT
+            echo "Bundle URL retrieved successfully"
+          else
+            echo "Error: Output is not valid JSON"
+            echo "Output was: $OUTPUT"
+            exit 1
+          fi
 
       - name: 'Deploy Gen2 Cloud Function'
         run: |
