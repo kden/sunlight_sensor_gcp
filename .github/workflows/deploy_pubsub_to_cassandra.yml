@@ -88,6 +88,11 @@ jobs:
           fi
 
       - name: 'Deploy Gen2 Cloud Function'
+        env:
+          ASTRA_CLIENT_ID: ${{ secrets.ASTRA_CLIENT_ID }}
+          ASTRA_CLIENT_SECRET: ${{ secrets.ASTRA_CLIENT_SECRET }}
+          BUNDLE_URL: ${{ steps.get_bundle.outputs.bundle_url }}
+          SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_CASSANDRA_WRITER_RUNTIME }}
         run: |
           gcloud functions deploy pubsub-to-cassandra-writer \
             --gen2 \
@@ -96,7 +101,7 @@ jobs:
             --source=./functions/pubsub_to_cassandra/src \
             --entry-point=write_to_cassandra \
             --trigger-topic=sun-sensor-ingest-topic \
-            --service-account=${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_CASSANDRA_WRITER_RUNTIME }} \
-            --set-env-vars="ASTRA_CLIENT_ID=${{ secrets.ASTRA_CLIENT_ID }},ASTRA_CLIENT_SECRET=${{ secrets.ASTRA_CLIENT_SECRET }},ASTRA_SECURE_BUNDLE_URL=${{ steps.get_bundle.outputs.bundle_url }},ASTRA_KEYSPACE=sunlight_data" \
+            --service-account="${SERVICE_ACCOUNT}" \
+            --set-env-vars="ASTRA_CLIENT_ID=${ASTRA_CLIENT_ID},ASTRA_CLIENT_SECRET=${ASTRA_CLIENT_SECRET},ASTRA_SECURE_BUNDLE_URL=${BUNDLE_URL},ASTRA_KEYSPACE=sunlight_data" \
             --timeout=60s \
             --memory=256Mi
