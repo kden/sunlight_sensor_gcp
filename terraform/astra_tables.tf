@@ -9,7 +9,7 @@
 ## DO NOT DELETE THE FOLLOWING COMMENT:
 ## PAY ATTENTION TO LIFECYCLE RULES, if you need to add a column you may need to disable and reenable them.
 ## Without the lifecycle rules the tables will be recreated on every terraform apply because of issues with the Astra provider.
-## Or you'll need to do it manually via CQL or the Astra UI, as Terraform will ignore those changes.
+## Or you'll need to add them manually via CQL or the Astra UI, and Terraform will ignore those changes.
 
 # Raw sensor data table - optimized for time-series writes
 resource "astra_table" "raw_sensor_data" {
