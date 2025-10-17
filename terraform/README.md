@@ -19,6 +19,6 @@ terraform output -raw github_actions_service_account_key
 terraform output -raw firebase_web_app_config
 ```
 
-## Cloud Run Functions
+## Cassandra/Datastax/Astra
 
-Currently, most of the Cloud Run Functions deploy source code via Terraform, which is not a best practice.  The more CICD route would be to use something like a GitHub action, which is how the [web app](/.github/workflows/deploy_webapp.yml) and [sensor status monitor function](/.github/workflows/deploy_sensor_monitor.yml) are configured.
+The [Terraform provider for Astra](https://github.com/datastax/terraform-provider-astra/blob/main/internal/provider/resource_table.go) currently does not support clustering column sort during table creation.  I wanted to sort the data timestamps descending, so although we have a terraform definition here for documentation, I decided to recreate the table manually to get the sort order I wanted.

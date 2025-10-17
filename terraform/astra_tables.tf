@@ -17,7 +17,7 @@ resource "astra_table" "raw_sensor_data" {
   keyspace           = astra_database.sunlight_db.keyspace
   database_id        = astra_database.sunlight_db.id
   region             = astra_database.sunlight_db.regions[0]
-  clustering_columns = "timestamp:desc"
+  clustering_columns = "timestamp"  # No way to define as descending with Terraform :(
   partition_keys     = "sensor_id"
 
   column_definitions = [
