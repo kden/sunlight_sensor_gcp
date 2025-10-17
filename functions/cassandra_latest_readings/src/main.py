@@ -63,7 +63,7 @@ def get_cassandra_session():
     auth_provider = PlainTextAuthProvider(astra_client_id, astra_client_secret)
 
     try:
-        # FIX: Set the protocol version to 4, which is supported by the server.
+        # Set the protocol version to 4, which is supported by the server.
         cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider, protocol_version=4)
         cassandra_session = cluster.connect()
         print(f"INFO: Connected to Astra")
@@ -104,6 +104,7 @@ def get_latest_readings(request):
 
         # Query for latest readings
         if sensor_set_id:
+            # FIX: Use a prepared statement for robust parameter binding.
             query = f"""
                 SELECT sensor_id, sensor_set_id, light_intensity, light_intensity_timestamp,
                        battery_voltage, battery_percent, battery_percent_timestamp,
@@ -113,7 +114,8 @@ def get_latest_readings(request):
                 WHERE sensor_set_id = ?
                 ALLOW FILTERING
             """
-            rows = session.execute(query, (sensor_set_id,))
+            prepared_statement = session.prepare(query)
+            rows = session.execute(prepared_statement, (sensor_set_id,))
         else:
             query = f"""
                 SELECT sensor_id, sensor_set_id, light_intensity, light_intensity_timestamp,
@@ -145,7 +147,7 @@ def get_latest_readings(request):
         return (jsonify(results), 200, headers)
 
     except Exception as e:
-        # FIX: Get and print the full traceback for any exceptions
+        # Get and print the full traceback for any exceptions
         error_trace = traceback.format_exc()
         print(f"ERROR: Failed to fetch latest readings: {e}\n{error_trace}")
         return (jsonify({'error': str(e)}), 500, headers)
