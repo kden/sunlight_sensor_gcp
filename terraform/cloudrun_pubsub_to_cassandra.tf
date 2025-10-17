@@ -59,6 +59,26 @@ resource "google_service_account" "cassandra_invoker_sa" {
   display_name = "Service Account for Cassandra Writer Invoker"
 }
 
+# ADDED: Grant Pub/Sub service account permission to invoke the Cloud Run service
+# This is critical for Gen2 Cloud Functions triggered by Pub/Sub
+resource "google_project_iam_member" "pubsub_sa_token_creator" {
+  project = var.gcp_project_id
+  role    = "roles/iam.serviceAccountTokenCreator"
+  member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
+# ADDED: This is the key permission - allow Pub/Sub to invoke the function
+# Note: This must be added AFTER the function is deployed, so you may need to
+# run terraform apply twice, or add the permission manually first
+resource "google_cloud_run_service_iam_member" "pubsub_invoker" {
+  location = var.region
+  project  = var.gcp_project_id
+  service  = "pubsub-to-cassandra-writer"
+
+  role   = "roles/run.invoker"
+  member = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+}
+
 # Output for GitHub Actions
 output "pubsub_to_cassandra_sa_email" {
   value       = google_service_account.pubsub_to_cassandra_sa.email
