@@ -9,6 +9,7 @@ Apache 2.0 Licensed as described in the file LICENSE
 """
 import os
 import json
+import traceback # Import the traceback module
 from datetime import datetime
 from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
@@ -52,7 +53,9 @@ def get_cassandra_session():
         blob.download_to_filename(bundle_path)
         print(f"INFO: Secure bundle downloaded successfully to {bundle_path}")
     except Exception as e:
-        print(f"ERROR: Failed to download secure bundle from GCS: {e}")
+        # Get and print the full traceback for download errors
+        error_trace = traceback.format_exc()
+        print(f"ERROR: Failed to download secure bundle from GCS: {e}\n{error_trace}")
         raise
 
     # Create Cassandra cluster connection
@@ -65,7 +68,9 @@ def get_cassandra_session():
         cassandra_session = cluster.connect()
         print(f"INFO: Connected to Astra")
     except Exception as e:
-        print(f"ERROR: Failed to connect to Cassandra: {e}")
+        # Get and print the full traceback for connection errors
+        error_trace = traceback.format_exc()
+        print(f"ERROR: Failed to connect to Cassandra: {e}\n{error_trace}")
         raise
 
     return cassandra_session
@@ -140,5 +145,7 @@ def get_latest_readings(request):
         return (jsonify(results), 200, headers)
 
     except Exception as e:
-        print(f"ERROR: Failed to fetch latest readings: {e}")
+        # FIX: Get and print the full traceback for any exceptions
+        error_trace = traceback.format_exc()
+        print(f"ERROR: Failed to fetch latest readings: {e}\n{error_trace}")
         return (jsonify({'error': str(e)}), 500, headers)
