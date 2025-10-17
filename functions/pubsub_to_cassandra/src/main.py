@@ -62,7 +62,7 @@ def get_cassandra_session():
     auth_provider = PlainTextAuthProvider(astra_client_id, astra_client_secret)
 
     try:
-        cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider, protocol_version=5)
+        cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider, protocol_version=4)
         # Connect without specifying keyspace to avoid the warning
         cassandra_session = cluster.connect()
         print(f"INFO: Connected to Astra")
