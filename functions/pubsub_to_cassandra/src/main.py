@@ -4,7 +4,7 @@ main.py
 Receives sensor data from Pub/Sub and writes to Datastax Astra Cassandra.
 
 Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4 (2025).
+Developed with assistance from Claude Sonnet 4.5 (2025).
 Apache 2.0 Licensed as described in the file LICENSE
 """
 import os
@@ -15,6 +15,7 @@ from cassandra.cluster import Cluster
 from cassandra.auth import PlainTextAuthProvider
 from cassandra import ConsistencyLevel
 from cassandra.query import SimpleStatement
+from google.cloud import storage
 import functions_framework
 
 # Global connection - initialized once and reused across function invocations
@@ -34,30 +35,38 @@ def get_cassandra_session():
     # Read Astra configuration from environment
     astra_client_id = os.environ.get('ASTRA_CLIENT_ID')
     astra_client_secret = os.environ.get('ASTRA_CLIENT_SECRET')
-    astra_secure_bundle_url = os.environ.get('ASTRA_SECURE_BUNDLE_URL')
+    astra_secure_bundle_bucket = os.environ.get('ASTRA_SECURE_BUNDLE_BUCKET')
     astra_keyspace = os.environ.get('ASTRA_KEYSPACE', 'sunlight_data')
 
-    if not all([astra_client_id, astra_client_secret, astra_secure_bundle_url]):
+    if not all([astra_client_id, astra_client_secret, astra_secure_bundle_bucket]):
         raise ValueError("Missing Astra configuration environment variables")
 
-    # Download secure connect bundle if needed (Cloud Functions have /tmp)
-    import urllib.request
+    # Download secure connect bundle from GCS
     bundle_path = '/tmp/secure-connect-bundle.zip'
 
     try:
-        urllib.request.urlretrieve(astra_secure_bundle_url, bundle_path)
+        print(f"INFO: Downloading secure bundle from gs://{astra_secure_bundle_bucket}/secure-connect-bundle.zip")
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(astra_secure_bundle_bucket)
+        blob = bucket.blob('secure-connect-bundle.zip')
+        blob.download_to_filename(bundle_path)
+        print(f"INFO: Secure bundle downloaded successfully to {bundle_path}")
     except Exception as e:
-        print(f"ERROR: Failed to download secure bundle: {e}")
+        print(f"ERROR: Failed to download secure bundle from GCS: {e}")
         raise
 
     # Create Cassandra cluster connection
     cloud_config = {'secure_connect_bundle': bundle_path}
     auth_provider = PlainTextAuthProvider(astra_client_id, astra_client_secret)
 
-    cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
-    cassandra_session = cluster.connect(astra_keyspace)
+    try:
+        cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
+        cassandra_session = cluster.connect(astra_keyspace)
+        print(f"INFO: Connected to Astra keyspace: {astra_keyspace}")
+    except Exception as e:
+        print(f"ERROR: Failed to connect to Cassandra: {e}")
+        raise
 
-    print(f"INFO: Connected to Astra keyspace: {astra_keyspace}")
     return cassandra_session
 
 

@@ -46,52 +46,50 @@ jobs:
           curl -Ls "https://dtsx.io/get-astra-cli" | bash || true
           echo "$HOME/.astra/cli" >> $GITHUB_PATH
 
-      - name: 'Get Secure Bundle URL'
+      - name: 'Get and Upload Secure Bundle'
         id: get_bundle
         env:
           ASTRA_DB_APPLICATION_TOKEN: ${{ secrets.ASTRA_DB_APPLICATION_TOKEN }}
           ASTRA_DB_ID: ${{ secrets.ASTRA_DB_ID }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
-          # Verify CLI is installed
-          ls -la $HOME/.astra/cli/
+          echo "Retrieving database information..."
           
-          # Get the secure bundle download URL from Astra with better error handling
-          echo "Attempting to retrieve database information..."
-          
-          # Capture the full output for debugging
+          # Get database info
           OUTPUT=$($HOME/.astra/cli/astra db get $ASTRA_DB_ID --token $ASTRA_DB_APPLICATION_TOKEN --output json 2>&1) || {
             echo "Error: Failed to get database information"
             echo "Output was: $OUTPUT"
             exit 1
           }
           
-          echo "Raw output from astra CLI:"
-          echo "$OUTPUT"
+          # Extract the secure bundle URL
+          BUNDLE_URL=$(echo "$OUTPUT" | jq -r '.data.info.datacenters[0].secureBundleUrl')
           
-          # Check if output is valid JSON before parsing
-          if echo "$OUTPUT" | jq empty 2>/dev/null; then
-            # Note the corrected path: .data.info.datacenters[0].secureBundleUrl
-            BUNDLE_URL=$(echo "$OUTPUT" | jq -r '.data.info.datacenters[0].secureBundleUrl')
-          
-            if [ -z "$BUNDLE_URL" ] || [ "$BUNDLE_URL" = "null" ]; then
-              echo "Error: Could not extract secure bundle URL from response"
-              echo "Full response: $OUTPUT"
-              exit 1
-            fi
-          
-            echo "bundle_url=${BUNDLE_URL}" >> $GITHUB_OUTPUT
-            echo "Bundle URL retrieved successfully"
-          else
-            echo "Error: Output is not valid JSON"
-            echo "Output was: $OUTPUT"
+          if [ -z "$BUNDLE_URL" ] || [ "$BUNDLE_URL" = "null" ]; then
+            echo "Error: Could not extract secure bundle URL"
             exit 1
           fi
+          
+          echo "Downloading secure bundle..."
+          curl -L -o /tmp/secure-connect-bundle.zip "$BUNDLE_URL"
+          
+          if [ ! -f /tmp/secure-connect-bundle.zip ]; then
+            echo "Error: Failed to download secure bundle"
+            exit 1
+          fi
+          
+          echo "Uploading bundle to GCS..."
+          BUCKET_NAME="${GCP_PROJECT_ID}-cassandra-bundle"
+          gsutil cp /tmp/secure-connect-bundle.zip "gs://${BUCKET_NAME}/secure-connect-bundle.zip"
+          
+          echo "Bundle uploaded successfully to gs://${BUCKET_NAME}/secure-connect-bundle.zip"
+          echo "bundle_bucket=${BUCKET_NAME}" >> $GITHUB_OUTPUT
 
       - name: 'Create deployment flags file'
         env:
           ASTRA_CLIENT_ID: ${{ secrets.ASTRA_CLIENT_ID }}
           ASTRA_CLIENT_SECRET: ${{ secrets.ASTRA_CLIENT_SECRET }}
-          BUNDLE_URL: ${{ steps.get_bundle.outputs.bundle_url }}
+          BUNDLE_BUCKET: ${{ steps.get_bundle.outputs.bundle_bucket }}
           SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_CASSANDRA_WRITER_RUNTIME }}
         run: |
           cat > /tmp/deploy-flags.yaml << EOF
@@ -101,12 +99,11 @@ jobs:
           --source: ./functions/pubsub_to_cassandra/src
           --entry-point: write_to_cassandra
           --trigger-topic: sun-sensor-ingest-topic
-          --trigger-service-account: ${SERVICE_ACCOUNT}
           --service-account: ${SERVICE_ACCOUNT}
           --set-env-vars:
             ASTRA_CLIENT_ID: ${ASTRA_CLIENT_ID}
             ASTRA_CLIENT_SECRET: ${ASTRA_CLIENT_SECRET}
-            ASTRA_SECURE_BUNDLE_URL: ${BUNDLE_URL}
+            ASTRA_SECURE_BUNDLE_BUCKET: ${BUNDLE_BUCKET}
             ASTRA_KEYSPACE: sunlight_data
           --timeout: 60s
           --memory: 256Mi
