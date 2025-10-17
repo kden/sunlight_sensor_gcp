@@ -60,7 +60,8 @@ def get_cassandra_session():
     auth_provider = PlainTextAuthProvider(astra_client_id, astra_client_secret)
 
     try:
-        cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
+        # FIX: Explicitly set the protocol version to 5 to prevent downgrade warnings.
+        cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider, protocol_version=5)
         cassandra_session = cluster.connect()
         print(f"INFO: Connected to Astra")
     except Exception as e:
