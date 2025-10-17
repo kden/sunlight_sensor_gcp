@@ -78,82 +78,89 @@ def update_latest_reading(session, reading, timestamp, ingestion_time):
     """
     sensor_id = reading.get('sensor_id')
     sensor_set_id = reading.get('sensor_set_id')
-
+    
     if not sensor_id:
         return
-
+    
     # Build the UPDATE statement dynamically based on what fields are present
     set_clauses = []
-    values = [ingestion_time]  # last_seen is always updated
-
-    # Always update these if present
+    values = []
+    
+    # Always update these fields
+    set_clauses.append("last_seen = ?")
+    values.append(ingestion_time)
+    
+    set_clauses.append("timestamp = ?")
+    values.append(timestamp)
+    
+    # Always update sensor_set_id if present
     if sensor_set_id:
         set_clauses.append("sensor_set_id = ?")
         values.append(sensor_set_id)
-
-    set_clauses.append("timestamp = ?")
-    values.append(timestamp)
-
+    
     # Update each field only if it's present in the reading
     if 'light_intensity' in reading and reading['light_intensity'] is not None:
         set_clauses.append("light_intensity = ?")
         set_clauses.append("light_intensity_timestamp = ?")
         values.extend([reading['light_intensity'], timestamp])
-
+    
     if 'status' in reading and reading['status'] is not None:
         set_clauses.append("status = ?")
         set_clauses.append("status_timestamp = ?")
         values.extend([reading['status'], timestamp])
-
+    
     if 'battery_voltage' in reading and reading['battery_voltage'] is not None:
         set_clauses.append("battery_voltage = ?")
         set_clauses.append("battery_voltage_timestamp = ?")
         values.extend([reading['battery_voltage'], timestamp])
-
+    
     if 'battery_percent' in reading and reading['battery_percent'] is not None:
         set_clauses.append("battery_percent = ?")
         set_clauses.append("battery_percent_timestamp = ?")
         values.extend([reading['battery_percent'], timestamp])
-
+    
     if 'wifi_dbm' in reading and reading['wifi_dbm'] is not None:
         set_clauses.append("wifi_dbm = ?")
         set_clauses.append("wifi_dbm_timestamp = ?")
         values.extend([reading['wifi_dbm'], timestamp])
-
+    
     if 'chip_temp_c' in reading and reading['chip_temp_c'] is not None:
         set_clauses.append("chip_temp_c = ?")
         set_clauses.append("chip_temp_c_timestamp = ?")
         values.extend([reading['chip_temp_c'], timestamp])
-
+    
     if 'chip_temp_f' in reading and reading['chip_temp_f'] is not None:
         set_clauses.append("chip_temp_f = ?")
         set_clauses.append("chip_temp_f_timestamp = ?")
         values.extend([reading['chip_temp_f'], timestamp])
-
+    
     if 'commit_sha' in reading and reading['commit_sha'] is not None:
         set_clauses.append("commit_sha = ?")
         set_clauses.append("commit_sha_timestamp = ?")
         values.extend([reading['commit_sha'], timestamp])
-
+    
     if 'commit_timestamp' in reading and reading['commit_timestamp'] is not None:
         set_clauses.append("commit_timestamp = ?")
         set_clauses.append("commit_timestamp_timestamp = ?")
         values.extend([reading['commit_timestamp'], timestamp])
-
-    # Construct and execute the UPDATE query
+    
+    # Construct the UPDATE query
     update_query = f"""
         UPDATE sensor_latest_reading
-        SET last_seen = ?, {', '.join(set_clauses)}
+        SET {', '.join(set_clauses)}
         WHERE sensor_id = ?
     """
-
-    values.append(sensor_id)  # WHERE clause value
-
+    
+    # Add sensor_id as the last value for the WHERE clause
+    values.append(sensor_id)
+    
     try:
         session.execute(update_query, values)
     except Exception as e:
         print(f"ERROR: Failed to update latest reading for {sensor_id}: {e}")
-
+        print(f"DEBUG: Query: {update_query}")
+        print(f"DEBUG: Number of placeholders: {update_query.count('?')}")
+        print(f"DEBUG: Number of values: {len(values)}")
 
 @functions_framework.cloud_event
 def write_to_cassandra(cloud_event):
