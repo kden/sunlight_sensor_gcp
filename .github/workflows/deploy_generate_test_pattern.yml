@@ -9,6 +9,7 @@
 name: Deploy Test Pattern Generator Function
 
 on:
+  workflow_dispatch:
   # Trigger the workflow on push events
   push:
     branches:

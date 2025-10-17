@@ -9,6 +9,7 @@
 name: Deploy Sensor Status Monitor Function
 
 on:
+  workflow_dispatch:
   # Trigger the workflow on push events to the main branch
   push:
     branches:

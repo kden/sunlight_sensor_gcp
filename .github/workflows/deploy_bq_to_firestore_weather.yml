@@ -9,6 +9,7 @@
 name: Deploy BQ to Firestore Weather Exporter
 
 on:
+  workflow_dispatch:
   # Trigger the workflow on push events
   push:
     branches:
