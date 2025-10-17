@@ -3,7 +3,7 @@
 # Cloud Function to write sensor data from Pub/Sub to Datastax Astra Cassandra
 #
 # Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4.5 (2025).
+# Developed with assistance from Claude Sonnet 4.5 (2025).
 # Apache 2.0 Licensed as described in the file LICENSE
 
 # GCS bucket to store the secure bundle
@@ -59,24 +59,14 @@ resource "google_service_account" "cassandra_invoker_sa" {
   display_name = "Service Account for Cassandra Writer Invoker"
 }
 
-# ADDED: Grant Pub/Sub service account permission to invoke the Cloud Run service
-# This is critical for Gen2 Cloud Functions triggered by Pub/Sub
-resource "google_project_iam_member" "pubsub_sa_token_creator" {
-  project = var.gcp_project_id
-  role    = "roles/iam.serviceAccountTokenCreator"
-  member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
-}
-
-# ADDED: This is the key permission - allow Pub/Sub to invoke the function
-# Note: This must be added AFTER the function is deployed, so you may need to
-# run terraform apply twice, or add the permission manually first
-resource "google_cloud_run_service_iam_member" "pubsub_invoker" {
+# This is required because Eventarc uses this SA to invoke the function
+resource "google_cloud_run_service_iam_member" "cassandra_sa_self_invoker" {
   location = var.region
   project  = var.gcp_project_id
   service  = "pubsub-to-cassandra-writer"
 
   role   = "roles/run.invoker"
-  member = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+  member = "serviceAccount:${google_service_account.pubsub_to_cassandra_sa.email}"
 }
 
 # Output for GitHub Actions

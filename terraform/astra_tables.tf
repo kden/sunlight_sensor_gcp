@@ -3,8 +3,12 @@
 # Define Cassandra tables for sunlight sensor data in Astra
 #
 # Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4 (2025).
+# Developed with assistance from Claude Sonnet 4.5 (2025).
 # Apache 2.0 Licensed as described in the file LICENSE
+
+## PAY ATTENTION TO LIFECYCLE RULES, if you need to add a column you may need to disable and reenable them.
+## Without the lifecycle rules the tables will be recreated on every terraform apply because of issues with the Astra provider.
+## Or you'll need to do it manually via CQL or the Astra UI, as Terraform will ignore those changes.
 
 # Raw sensor data table - optimized for time-series writes
 resource "astra_table" "raw_sensor_data" {
@@ -62,6 +66,10 @@ resource "astra_table" "raw_sensor_data" {
       TypeDefinition : "int"
     }
   ]
+
+  lifecycle {
+    ignore_changes = [column_definitions]
+  }
 }
 
 # Sensor metadata table
@@ -120,6 +128,10 @@ resource "astra_table" "sensor_metadata" {
       TypeDefinition : "text"
     }
   ]
+
+  lifecycle {
+    ignore_changes = [column_definitions]
+  }
 }
 
 # Sensor set metadata table
@@ -153,4 +165,8 @@ resource "astra_table" "sensor_set_metadata" {
       TypeDefinition : "double"
     }
   ]
+
+  lifecycle {
+    ignore_changes = [column_definitions]
+  }
 }

@@ -3,7 +3,7 @@
 # Define Astra database and keyspace for sunlight sensor data
 #
 # Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-# Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4 (2025).
+# Developed with assistance from Claude Sonnet 4.5 (2025).
 # Apache 2.0 Licensed as described in the file LICENSE
 
 # Create or reference existing Astra database
