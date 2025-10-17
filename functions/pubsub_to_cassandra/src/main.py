@@ -20,6 +20,7 @@ import functions_framework
 
 # Global connection - initialized once and reused across function invocations
 cassandra_session = None
+astra_keyspace = None
 
 
 def get_cassandra_session():
@@ -28,6 +29,7 @@ def get_cassandra_session():
     Reuses the connection across function invocations.
     """
     global cassandra_session
+    global astra_keyspace
 
     if cassandra_session is not None:
         return cassandra_session
@@ -61,8 +63,9 @@ def get_cassandra_session():
 
     try:
         cluster = Cluster(cloud=cloud_config, auth_provider=auth_provider)
-        cassandra_session = cluster.connect(astra_keyspace)
-        print(f"INFO: Connected to Astra keyspace: {astra_keyspace}")
+        # Connect without specifying keyspace to avoid the warning
+        cassandra_session = cluster.connect()
+        print(f"INFO: Connected to Astra")
     except Exception as e:
         print(f"ERROR: Failed to connect to Cassandra: {e}")
         raise
@@ -147,9 +150,9 @@ def update_latest_reading(session, reading, timestamp, ingestion_time):
     # Add sensor_id as the last value for the WHERE clause
     values.append(sensor_id)
 
-    # Construct the UPDATE query
+    # Construct the UPDATE query with fully qualified table name
     update_query = f"""
-        UPDATE sensor_latest_reading
+        UPDATE {astra_keyspace}.sensor_latest_reading
         SET {', '.join(set_clauses)}
         WHERE sensor_id = ?
     """
@@ -164,6 +167,7 @@ def update_latest_reading(session, reading, timestamp, ingestion_time):
         print(f"DEBUG: Number of placeholders: {update_query.count('?')}")
         print(f"DEBUG: Number of values: {len(values)}")
         print(f"DEBUG: Values: {values}")
+
 
 @functions_framework.cloud_event
 def write_to_cassandra(cloud_event):
@@ -191,9 +195,9 @@ def write_to_cassandra(cloud_event):
         print(f"ERROR: Failed to initialize Cassandra connection: {e}")
         return
 
-    # Prepare the insert statement for raw data
-    insert_query = """
-        INSERT INTO raw_sensor_data (
+    # Prepare the insert statement for raw data with fully qualified table name
+    insert_query = f"""
+        INSERT INTO {astra_keyspace}.raw_sensor_data (
             sensor_id,
             sensor_set_id,
             timestamp,
