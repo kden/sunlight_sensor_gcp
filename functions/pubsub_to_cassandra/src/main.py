@@ -70,6 +70,91 @@ def get_cassandra_session():
     return cassandra_session
 
 
+def update_latest_reading(session, reading, timestamp, ingestion_time):
+    """
+    Update the latest reading cache table.
+    Only updates fields that are present in the reading, preserving other fields.
+    Uses Cassandra's UPSERT semantics to merge updates.
+    """
+    sensor_id = reading.get('sensor_id')
+    sensor_set_id = reading.get('sensor_set_id')
+
+    if not sensor_id:
+        return
+
+    # Build the UPDATE statement dynamically based on what fields are present
+    set_clauses = []
+    values = [ingestion_time]  # last_seen is always updated
+
+    # Always update these if present
+    if sensor_set_id:
+        set_clauses.append("sensor_set_id = ?")
+        values.append(sensor_set_id)
+
+    set_clauses.append("timestamp = ?")
+    values.append(timestamp)
+
+    # Update each field only if it's present in the reading
+    if 'light_intensity' in reading and reading['light_intensity'] is not None:
+        set_clauses.append("light_intensity = ?")
+        set_clauses.append("light_intensity_timestamp = ?")
+        values.extend([reading['light_intensity'], timestamp])
+
+    if 'status' in reading and reading['status'] is not None:
+        set_clauses.append("status = ?")
+        set_clauses.append("status_timestamp = ?")
+        values.extend([reading['status'], timestamp])
+
+    if 'battery_voltage' in reading and reading['battery_voltage'] is not None:
+        set_clauses.append("battery_voltage = ?")
+        set_clauses.append("battery_voltage_timestamp = ?")
+        values.extend([reading['battery_voltage'], timestamp])
+
+    if 'battery_percent' in reading and reading['battery_percent'] is not None:
+        set_clauses.append("battery_percent = ?")
+        set_clauses.append("battery_percent_timestamp = ?")
+        values.extend([reading['battery_percent'], timestamp])
+
+    if 'wifi_dbm' in reading and reading['wifi_dbm'] is not None:
+        set_clauses.append("wifi_dbm = ?")
+        set_clauses.append("wifi_dbm_timestamp = ?")
+        values.extend([reading['wifi_dbm'], timestamp])
+
+    if 'chip_temp_c' in reading and reading['chip_temp_c'] is not None:
+        set_clauses.append("chip_temp_c = ?")
+        set_clauses.append("chip_temp_c_timestamp = ?")
+        values.extend([reading['chip_temp_c'], timestamp])
+
+    if 'chip_temp_f' in reading and reading['chip_temp_f'] is not None:
+        set_clauses.append("chip_temp_f = ?")
+        set_clauses.append("chip_temp_f_timestamp = ?")
+        values.extend([reading['chip_temp_f'], timestamp])
+
+    if 'commit_sha' in reading and reading['commit_sha'] is not None:
+        set_clauses.append("commit_sha = ?")
+        set_clauses.append("commit_sha_timestamp = ?")
+        values.extend([reading['commit_sha'], timestamp])
+
+    if 'commit_timestamp' in reading and reading['commit_timestamp'] is not None:
+        set_clauses.append("commit_timestamp = ?")
+        set_clauses.append("commit_timestamp_timestamp = ?")
+        values.extend([reading['commit_timestamp'], timestamp])
+
+    # Construct and execute the UPDATE query
+    update_query = f"""
+        UPDATE sensor_latest_reading
+        SET last_seen = ?, {', '.join(set_clauses)}
+        WHERE sensor_id = ?
+    """
+
+    values.append(sensor_id)  # WHERE clause value
+
+    try:
+        session.execute(update_query, values)
+    except Exception as e:
+        print(f"ERROR: Failed to update latest reading for {sensor_id}: {e}")
+
+
 @functions_framework.cloud_event
 def write_to_cassandra(cloud_event):
     """
@@ -96,8 +181,7 @@ def write_to_cassandra(cloud_event):
         print(f"ERROR: Failed to initialize Cassandra connection: {e}")
         return
 
-    # Prepare the insert statement
-    # Using a separate table for raw sensor data
+    # Prepare the insert statement for raw data
     insert_query = """
         INSERT INTO raw_sensor_data (
             sensor_id,
@@ -108,8 +192,12 @@ def write_to_cassandra(cloud_event):
             status,
             battery_voltage,
             battery_percent,
-            wifi_dbm
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            wifi_dbm,
+            chip_temp_c,
+            chip_temp_f,
+            commit_sha,
+            commit_timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
 
     prepared = session.prepare(insert_query)
@@ -133,6 +221,10 @@ def write_to_cassandra(cloud_event):
             battery_voltage = reading.get('battery_voltage')
             battery_percent = reading.get('battery_percent')
             wifi_dbm = reading.get('wifi_dbm')
+            chip_temp_c = reading.get('chip_temp_c')
+            chip_temp_f = reading.get('chip_temp_f')
+            commit_sha = reading.get('commit_sha')
+            commit_timestamp = reading.get('commit_timestamp')
 
             # Skip if missing required fields
             if not sensor_id or not timestamp:
@@ -146,7 +238,7 @@ def write_to_cassandra(cloud_event):
             # Current time for ingestion_time
             ingestion_time = datetime.utcnow()
 
-            # Execute insert
+            # Execute insert to raw data table
             session.execute(
                 prepared,
                 (
@@ -158,9 +250,16 @@ def write_to_cassandra(cloud_event):
                     status,
                     battery_voltage,
                     battery_percent,
-                    wifi_dbm
+                    wifi_dbm,
+                    chip_temp_c,
+                    chip_temp_f,
+                    commit_sha,
+                    commit_timestamp
                 )
             )
+
+            # Update latest reading cache
+            update_latest_reading(session, reading, timestamp, ingestion_time)
 
             success_count += 1
 
