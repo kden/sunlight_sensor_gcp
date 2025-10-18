@@ -67,11 +67,12 @@ export default function RootLayout({
               </ul>
             </nav>
           </aside>
-          <main className="flex-1 bg-gray-900 text-white p-4 md:p-8 overflow-y-auto">
-            <ErrorBoundary>
-              {children}
-            </ErrorBoundary>
-          </main>
+            <main className="flex-1 bg-gray-900 text-white p-4 md:p-8 overflow-y-auto">
+                {/* Comment out error boundary to surface errors. */}
+                {/* <ErrorBoundary> */}
+                {children}
+                {/* </ErrorBoundary> */}
+            </main>
         </div>
       </body>
     </html>
