@@ -16,6 +16,7 @@ import { app } from '@/app/firebase';
 import { useSensorSelection } from '@/app/hooks/useSensorSelection';
 import SensorSetDropdown from '@/app/components/SensorSetDropdown';
 import StatusDisplay from '@/app/components/StatusDisplay';
+import { DateTime } from 'luxon';
 
 // --- Define the Sensor data structure ---
 interface SensorMetadata {
@@ -142,6 +143,20 @@ export default function DetailsPage() {
         fetchSensors();
     }, [selectedSensorSet]);
 
+    // Helper function to format last_seen in local timezone
+    const formatLastSeen = (lastSeenUtc: string | null): string => {
+        if (!lastSeenUtc || !timezone) {
+            return 'N/A';
+        }
+        try {
+            const dt = DateTime.fromISO(lastSeenUtc, { zone: 'utc' }).setZone(timezone);
+            return dt.toLocaleString(DateTime.DATETIME_SHORT);
+        } catch (e) {
+            console.error('Error formatting last_seen:', e);
+            return 'N/A';
+        }
+    };
+
     return (
         <div className="font-sans">
             <div>
@@ -188,12 +203,11 @@ export default function DetailsPage() {
                                 <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Position X (ft)</th>
                                 <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Position Y (ft)</th>
                                 <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Board</th>
-                                <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Sunlight Sensor</th>
                                 <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Light (lux)</th>
                                 <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Battery %</th>
                                 <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">WiFi (dBm)</th>
                                 <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Temp (°F)</th>
-                                <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Last Seen</th>
+                                <th className="p-3 text-left text-sm font-semibold text-amber-300 uppercase tracking-wider">Last Seen (Local Time)</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -203,7 +217,6 @@ export default function DetailsPage() {
                                     <td className="p-3 whitespace-nowrap">{sensor.position_x_ft}</td>
                                     <td className="p-3 whitespace-nowrap">{sensor.position_y_ft}</td>
                                     <td className="p-3 whitespace-nowrap">{sensor.board}</td>
-                                    <td className="p-3 whitespace-nowrap">{sensor.sunlight_sensor_model}</td>
                                     <td className="p-3 whitespace-nowrap text-right">
                                         {sensor.light_intensity !== null ? sensor.light_intensity.toFixed(1) : 'N/A'}
                                     </td>
@@ -217,7 +230,7 @@ export default function DetailsPage() {
                                         {sensor.chip_temp_f !== null ? sensor.chip_temp_f.toFixed(1) : 'N/A'}
                                     </td>
                                     <td className="p-3 whitespace-nowrap">
-                                        {sensor.last_seen ? new Date(sensor.last_seen).toLocaleString() : 'N/A'}
+                                        {formatLastSeen(sensor.last_seen)}
                                     </td>
                                 </tr>
                             ))}
