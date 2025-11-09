@@ -68,6 +68,19 @@ export default function RootLayout({
             </nav>
           </aside>
             <main className="flex-1 bg-gray-900 text-white p-4 md:p-8 overflow-y-auto">
+                {/* Info message box - appears at top of every page */}
+                <div className="bg-amber-300 text-gray-900 p-4 rounded-lg mb-6 border-l-4 border-amber-500">
+                    <p className="font-medium">
+                        {/* News */}
+                        Not seeing any data? It&#39;s getting cold here in the Midwest, and I am not excited about
+                        going outside to change the sensor batteries.  So the software is working, but the sensors may be down.
+                    </p>
+                    <br/>
+                    <p className="font-medium">
+                        You can look up about 2 continuous months of sensor data from August through September 2025.
+                        Additionally, you can select the "Test" sensor set, with a constant, generated pattern.
+                    </p>
+                </div>
                 {/* Comment out error boundary to surface errors. */}
                 {/* <ErrorBoundary> */}
                 {children}
