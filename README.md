@@ -52,4 +52,4 @@ Licensing information is in the [LICENSE](LICENSE) and [THIRD_PARTY_LICENSES](TH
 
 ## AI
 
-This project was developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025), and Claude Sonnet 4 (2025).
+This project was developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025), and Claude Sonnet 4 and 4.5 (2025).
