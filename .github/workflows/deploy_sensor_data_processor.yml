@@ -1,0 +1,123 @@
+# .github/workflows/deploy_sensor_data_processor.yml
+#
+# Deploy the Sensor Data Processor Cloud Run Function
+# Combines pubsub_to_cassandra and sensor_status_monitor
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from Claude Sonnet 4.5 (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
+name: Deploy Sensor Data Processor Function
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/sensor_data_processor/**'
+      - '.github/workflows/deploy_sensor_data_processor.yml'
+
+jobs:
+  deploy:
+    env:
+      TERM: linux
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Install Astra CLI'
+        run: |
+          curl -Ls "https://dtsx.io/get-astra-cli" | bash || true
+          echo "$HOME/.astra/cli" >> $GITHUB_PATH
+
+      - name: 'Get and Upload Secure Bundle'
+        id: get_bundle
+        env:
+          ASTRA_DB_APPLICATION_TOKEN: ${{ secrets.ASTRA_DB_APPLICATION_TOKEN }}
+          ASTRA_DB_ID: ${{ secrets.ASTRA_DB_ID }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          echo "Retrieving database information..."
+          
+          # Get database info
+          OUTPUT=$($HOME/.astra/cli/astra db get $ASTRA_DB_ID --token $ASTRA_DB_APPLICATION_TOKEN --output json 2>&1) || {
+            echo "Error: Failed to get database information"
+            echo "Output was: $OUTPUT"
+            exit 1
+          }
+          
+          # Extract the secure bundle URL
+          BUNDLE_URL=$(echo "$OUTPUT" | jq -r '.data.info.datacenters[0].secureBundleUrl')
+          
+          if [ -z "$BUNDLE_URL" ] || [ "$BUNDLE_URL" = "null" ]; then
+            echo "Error: Could not extract secure bundle URL"
+            exit 1
+          fi
+          
+          echo "Downloading secure bundle..."
+          curl -L -o /tmp/secure-connect-bundle.zip "$BUNDLE_URL"
+          
+          if [ ! -f /tmp/secure-connect-bundle.zip ]; then
+            echo "Error: Failed to download secure bundle"
+            exit 1
+          fi
+          
+          echo "Uploading bundle to GCS..."
+          BUCKET_NAME="${GCP_PROJECT_ID}-cassandra-bundle"
+          gsutil cp /tmp/secure-connect-bundle.zip "gs://${BUCKET_NAME}/secure-connect-bundle.zip"
+          
+          echo "Bundle uploaded successfully to gs://${BUCKET_NAME}/secure-connect-bundle.zip"
+          echo "bundle_bucket=${BUCKET_NAME}" >> $GITHUB_OUTPUT
+
+      - name: 'Create deployment flags file'
+        env:
+          ASTRA_CLIENT_ID: ${{ secrets.ASTRA_CLIENT_ID }}
+          ASTRA_CLIENT_SECRET: ${{ secrets.ASTRA_CLIENT_SECRET }}
+          BUNDLE_BUCKET: ${{ steps.get_bundle.outputs.bundle_bucket }}
+          SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_CASSANDRA_WRITER_RUNTIME }}
+        run: |
+          cat > /tmp/deploy-flags.yaml << EOF
+          --gen2:
+          --region: us-central1
+          --runtime: python311
+          --source: ./functions/sensor_data_processor/src
+          --entry-point: process_sensor_data
+          --trigger-topic: sun-sensor-ingest-topic
+          --service-account: ${SERVICE_ACCOUNT}
+          --set-env-vars:
+            ASTRA_CLIENT_ID: ${ASTRA_CLIENT_ID}
+            ASTRA_CLIENT_SECRET: ${ASTRA_CLIENT_SECRET}
+            ASTRA_SECURE_BUNDLE_BUCKET: ${BUNDLE_BUCKET}
+            ASTRA_KEYSPACE: sunlight_data
+            ALERT_EMAIL_ADDRESS: ${{ secrets.ALERT_EMAIL_ADDRESS }}
+            GMAIL_USER: ${{ secrets.GMAIL_USER }}
+            GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+            PUSHOVER_APP_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
+            PUSHOVER_BATTERY_APP_TOKEN: ${{ secrets.PUSHOVER_BATTERY_APP_TOKEN }}
+            PUSHOVER_USER_KEY: ${{ secrets.PUSHOVER_USER_KEY }}
+          --timeout: 60s
+          --memory: 256Mi
+          EOF
+
+      - name: 'Deploy Gen2 Cloud Function'
+        run: |
+          gcloud functions deploy sensor-data-processor \
+            --flags-file=/tmp/deploy-flags.yaml
