@@ -39,8 +39,6 @@ jobs:
         with:
           workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
           service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
-          token_format: 'access_token'
-          create_credentials_file: true
 
       - name: 'Set up Cloud SDK'
         uses: 'google-github-actions/setup-gcloud@v2'
@@ -95,7 +93,6 @@ jobs:
           ASTRA_CLIENT_SECRET: ${{ secrets.ASTRA_CLIENT_SECRET }}
           BUNDLE_BUCKET: ${{ steps.get_bundle.outputs.bundle_bucket }}
           SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_CASSANDRA_WRITER_RUNTIME }}
-          CLOUDSDK_AUTH_CREDENTIAL_FILE_OVERRIDE: ${{ steps.auth.outputs.credentials_file_path }}
         run: |
           cat > /tmp/deploy-flags.yaml << EOF
           --gen2:

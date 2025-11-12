@@ -29,13 +29,6 @@ resource "google_project_iam_member" "function_deployer_functions_admin" {
   member  = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
-# --- Allow Function Deployer SA to act as the Sensor Monitor Runtime SA ---
-resource "google_service_account_iam_member" "function_deployer_act_as_sensor_monitor_runtime" {
-  service_account_id = google_service_account.sensor_monitor_runtime_sa.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.function_deployer.email}"
-}
-
 resource "google_project_iam_member" "function_deployer_iam_viewer" {
   project = var.gcp_project_id
   role    = "roles/iam.serviceAccountViewer"
@@ -69,42 +62,8 @@ resource "google_project_iam_member" "function_deployer_storage_admin" {
   member  = "serviceAccount:${google_service_account.function_deployer.email}"
 }
 
-# --- Service Account for Sensor Monitor Function Runtime ---
-resource "google_service_account" "sensor_monitor_runtime_sa" {
-  project      = var.gcp_project_id
-  account_id   = "sensor-monitor-runtime-sa"
-  display_name = "Sensor Monitor Function Runtime Service Account"
-}
-
-resource "google_project_iam_member" "sensor_monitor_runtime_logging" {
-  project = var.gcp_project_id
-  role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.sensor_monitor_runtime_sa.email}"
-}
-
-resource "google_project_iam_member" "sensor_monitor_runtime_pubsub" {
-  project = var.gcp_project_id
-  role    = "roles/pubsub.subscriber"
-  member  = "serviceAccount:${google_service_account.sensor_monitor_runtime_sa.email}"
-}
-
-# Eventarc forwards Pub/Sub messages to trigger the Cloud Run-based function.
-resource "google_cloud_run_service_iam_member" "sensor_monitor_runtime_invoker" {
-  location = "us-central1"
-  project  = var.gcp_project_id
-  service  = "sensor-status-monitor-function"
-
-  role   = "roles/run.invoker"
-  member = "serviceAccount:${google_service_account.sensor_monitor_runtime_sa.email}"
-}
-
 # --- Outputs ---
 output "function_deployer_email" {
   value       = google_service_account.function_deployer.email
   description = "The email of the service account for deploying Cloud Functions (GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS)."
-}
-
-output "sensor_monitor_runtime_email" {
-  value       = google_service_account.sensor_monitor_runtime_sa.email
-  description = "The email of the runtime service account for the sensor monitor function (GCP_SERVICE_ACCOUNT_EMAIL_RUNTIME)."
 }

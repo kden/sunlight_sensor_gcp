@@ -63,7 +63,7 @@ resource "google_service_account" "cassandra_invoker_sa" {
 resource "google_cloud_run_service_iam_member" "cassandra_sa_self_invoker" {
   location = var.region
   project  = var.gcp_project_id
-  service  = "pubsub-to-cassandra-writer"
+  service  = "sensor-data-processor"
 
   role   = "roles/run.invoker"
   member = "serviceAccount:${google_service_account.pubsub_to_cassandra_sa.email}"
