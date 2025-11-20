@@ -1,4 +1,3 @@
-# terraform/providers.tf
 
 # Configure the Google Cloud provider
 terraform {
@@ -24,3 +23,4 @@ provider "astra" {
   # Get this from: https://astra.datastax.com/settings/tokens
   token = var.astra_token
 }
+
