@@ -1,7 +1,7 @@
 """
 main.py
 
-Receives sensor data from Pub/Sub, writes to Cassandra, and sends status notifications.
+Receives sensor data from Pub/Sub, writes to Cassandra (conditionally), and sends status notifications.
 Combines functionality of pubsub_to_cassandra and sensor_status_monitor.
 
 Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
@@ -30,6 +30,11 @@ astra_keyspace = None
 
 # Enable/disable Pushover notifications
 ENABLE_PUSHOVER = True
+
+# NEW FLAG: Controls whether data is written to Cassandra.
+# Reads value from environment variable, defaulting to "True".
+# Any value other than "True" (case-insensitive) will be treated as False.
+ENABLE_CASSANDRA_WRITE = os.environ.get('ENABLE_CASSANDRA_WRITE', 'True').lower() == 'true'
 
 
 def get_cassandra_session():
@@ -300,7 +305,7 @@ This is informational only - no action required.
 def process_status_messages(payload):
     """
     Process status messages and send notifications.
-    Separated from Cassandra writes so write failures don't block notifications.
+    This phase also generates the structured logs for both monitoring metrics.
     """
     # Separate status alerts from regular pings
     status_readings = []
@@ -364,6 +369,8 @@ def process_status_messages(payload):
     # Log a single summary message for each group of pings
     for (sensor_set_id, sensor_id), readings in pings_by_sensor.items():
         num_points = len(readings)
+
+        # Log entry 1: For the absence alert metric (sensor_ping_count)
         ping_log_entry = {
             "severity": "INFO",
             "message": f"{num_points} data points received from {sensor_id}",
@@ -371,18 +378,19 @@ def process_status_messages(payload):
             "sensor_set_id": sensor_set_id,
             "log_name": "sensor_status_ping",
             "data_point_count": num_points,
-            "data_payload": readings
+            "data_payload": readings # Keeping payload for detailed logs, though metric doesn't use it
         }
         print(json.dumps(ping_log_entry))
 
-        # This logs the required log_name and data_point_count to populate the other log-based metric.
+        # Log entry 2: For the weighted counter metric (sensor_data_points_received)
+        # This uses the required log_name and omits the large data_payload for efficiency.
         data_point_metric_log = {
             "severity": "INFO",
             "message": f"Metric point for {sensor_id}: {num_points} data points.",
             "sensor_id": sensor_id,
             "sensor_set_id": sensor_set_id,
             "log_name": "sensor_data_point_metric",
-            "data_point_count": num_points,  # This value is extracted by the metric filter
+            "data_point_count": num_points,  # Value extracted by the metric filter
         }
         print(json.dumps(data_point_metric_log))
 
@@ -486,8 +494,7 @@ def write_to_cassandra(session, payload):
 def process_sensor_data(cloud_event):
     """
     Triggered by Pub/Sub message. Writes sensor readings to Cassandra
-    and processes status notifications. Combines functionality of
-    pubsub_to_cassandra and sensor_status_monitor.
+    (conditionally) and processes status notifications (always).
     """
     # Decode the Pub/Sub message
     try:
@@ -503,15 +510,20 @@ def process_sensor_data(cloud_event):
         print(f"WARN: Received non-list payload, converting to list. Payload: {payload}")
         payload = [payload]
 
-    # === PHASE 1: Write to Cassandra ===
-    try:
-        session = get_cassandra_session()
-        write_to_cassandra(session, payload)
-    except Exception as e:
-        print(f"ERROR: Cassandra write failed: {e}")
+    # === PHASE 1: Write to Cassandra (Controlled by Feature Flag) ===
+    global ENABLE_CASSANDRA_WRITE
+    if ENABLE_CASSANDRA_WRITE:
+        try:
+            session = get_cassandra_session()
+            write_to_cassandra(session, payload)
+        except Exception as e:
+            print(f"ERROR: Cassandra write failed: {e}")
+    else:
+        print("INFO: Cassandra write skipped due to ENABLE_CASSANDRA_WRITE flag being set to False.")
 
-    # === PHASE 2: Process Status Messages ===
-    # This runs independently of Cassandra writes
+
+    # === PHASE 2: Process Status Messages (Logs and Notifications) ===
+    # This runs independently of Cassandra writes and is always enabled for monitoring
     try:
         process_status_messages(payload)
     except Exception as e:
