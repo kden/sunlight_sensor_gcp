@@ -8,14 +8,6 @@ Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
 Developed with assistance from Claude Sonnet 4.5 (2025).
 Apache 2.0 Licensed as described in the file LICENSE
 """
-#  main.py
-#
-#  Source code description.
-#
-#  Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
-#  Developed with assistance from ChatGPT 4o (2025) and Google Gemini 2.5 Pro (2025).
-#  Apache 2.0 Licensed as described in the file LICENSE
-
 import os
 import json
 import base64
@@ -382,6 +374,17 @@ def process_status_messages(payload):
             "data_payload": readings
         }
         print(json.dumps(ping_log_entry))
+
+        # This logs the required log_name and data_point_count to populate the other log-based metric.
+        data_point_metric_log = {
+            "severity": "INFO",
+            "message": f"Metric point for {sensor_id}: {num_points} data points.",
+            "sensor_id": sensor_id,
+            "sensor_set_id": sensor_set_id,
+            "log_name": "sensor_data_point_metric",
+            "data_point_count": num_points,  # This value is extracted by the metric filter
+        }
+        print(json.dumps(data_point_metric_log))
 
 
 def write_to_cassandra(session, payload):

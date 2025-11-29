@@ -17,6 +17,7 @@ resource "google_monitoring_notification_channel" "email_channel" {
     email_address = var.alert_email_address
   }
 
+
   lifecycle {
     # Prevent recreation when only metadata changes
     ignore_changes = [
@@ -33,6 +34,7 @@ resource "google_monitoring_notification_channel" "sms_channel" {
     number = var.alert_phone_number
   }
 
+
   lifecycle {
     # Prevent recreation when only metadata changes
     ignore_changes = [
@@ -48,8 +50,7 @@ resource "google_logging_metric" "sensor_ping_count" {
   project = var.gcp_project_id
   name    = "sensor_ping_count"
 
-  # The filter for pings from ANY sensor, EXCLUDING the 'test' set.
-  filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"sensor-status-monitor-function\" AND jsonPayload.log_name=\"sensor_status_ping\" AND jsonPayload.sensor_set_id != \"test\""
+  filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"sensor-data-processor\" AND jsonPayload.log_name=\"sensor_status_ping\" AND jsonPayload.sensor_set_id != \"test\""
 
   metric_descriptor {
     metric_kind = "DELTA"
@@ -66,11 +67,13 @@ resource "google_logging_metric" "sensor_ping_count" {
     }
   }
 
+
   # This block tells the metric how to populate the labels.
   label_extractors = {
     "sensor_id"     = "EXTRACT(jsonPayload.sensor_id)"
     "sensor_set_id" = "EXTRACT(jsonPayload.sensor_set_id)"
   }
+
 
   lifecycle {
     # Prevent recreation if only metadata changes
@@ -120,11 +123,13 @@ resource "google_logging_metric" "sensor_data_points" {
 
 # --- 3. Create Alerting Policy for Ping Absence ONLY ---
 # This watches all sensor ping streams and triggers if any one of them is
-# absent for 15 minutes. This IS treated as a critical incident.
+# absent for 15 minutes.
+# This IS treated as a critical incident.
 resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
   project      = var.gcp_project_id
   display_name = "Sensor Ping Absence Alert"
   combiner     = "OR"
+
 
   # The conditions for triggering the alert
   conditions {
@@ -143,6 +148,7 @@ resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
     }
   }
 
+
   # Use a structured documentation block for rich, actionable notifications.
   documentation {
     # Use Markdown for rich formatting in emails.
@@ -150,24 +156,22 @@ resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
 
     # This subject is used for the email subject and the body of SMS messages.
     subject = "🚨 SENSOR OFFLINE: Sensor $${metric.label.sensor_id} has stopped sending pings."
-
     # Use a HEREDOC for a clean, multi-line Markdown message body.
     content = <<-EOT
       ## 🔕 Sensor Ping Absence Alert
 
       A sensor has not sent a ping for over 15 minutes and may be offline.
-
       **Details:**
       - **Project ID:** `$${resource.label.project_id}`
       - **Sensor ID:** `$${metric.label.sensor_id}`
       - **Sensor Set:** `$${metric.label.sensor_set_id}`
       - **Last Seen:** More than 15 minutes ago.
-
       **Next Steps:**
       - View Pings for this Sensor
       - View Alert Policy
     EOT
   }
+
 
   # Link the policy to both critical notification channels (email + SMS)
   notification_channels = [
@@ -175,4 +179,3 @@ resource "google_monitoring_alert_policy" "ping_absence_alert_policy" {
     google_monitoring_notification_channel.sms_channel.id,
   ]
 }
-
