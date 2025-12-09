@@ -80,6 +80,8 @@ jobs:
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ steps.set_firebase_env.outputs.messagingSenderId }}
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ steps.set_firebase_env.outputs.appId }}
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ steps.set_firebase_env.outputs.measurementId }}
+          NEXT_PUBLIC_SSE_STREAM_URL: ${{ secrets.NEXT_PUBLIC_SSE_STREAM_URL }}
+
 
       # --- Deploy using the Firebase CLI directly ---
       - name: Deploy to Firebase Hosting

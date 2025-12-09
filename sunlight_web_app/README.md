@@ -2,7 +2,7 @@
 
 ![screenshot_sensor_levels_screen.png](/doc_images/screenshot_sensor_levels_screen.png)
 
-The core infrastructure for this web app is defined in Terraform in [firebase_webapp.tf](/terraform/firebase_webapp.tf)
+The core infrastructure for this web app is defined in Terraform in [firebase_webapp.tf](/terraform/frontend/firebase_webapp.tf)
 
 This application is deployed as a [GitHub Action](/.github/workflows/deploy_webapp.yml).
 

@@ -1,7 +1,7 @@
 /*
  * page.tsx
  *
- * Displays a filterable list of all sensors in a given set with live data from Cassandra.
+ * Displays a filterable list of all sensors in a given set with live data from Cassandra via SSE.
  *
  * Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
  * Developed with assistance from ChatGPT 4o (2025), Google Gemini 2.5 Pro (2025) and Claude Sonnet 4.5 (2025).
@@ -14,6 +14,7 @@ import { useState, useEffect } from 'react';
 import { getFirestore, collection, getDocs, query, where, DocumentData } from 'firebase/firestore';
 import { app } from '@/app/firebase';
 import { useSensorSelection } from '@/app/hooks/useSensorSelection';
+import { useLatestReadingsSSE } from '@/app/hooks/useLatestReadingsSSE';
 import SensorSetDropdown from '@/app/components/SensorSetDropdown';
 import StatusDisplay from '@/app/components/StatusDisplay';
 import { DateTime } from 'luxon';
@@ -28,15 +29,6 @@ interface SensorMetadata {
     sunlight_sensor_model: string;
 }
 
-interface LatestReading {
-    sensor_id: string;
-    light_intensity: number | null;
-    battery_percent: number | null;
-    wifi_dbm: number | null;
-    chip_temp_f: number | null;
-    last_seen: string | null;
-}
-
 interface CombinedSensorData extends SensorMetadata {
     light_intensity: number | null;
     battery_percent: number | null;
@@ -46,12 +38,15 @@ interface CombinedSensorData extends SensorMetadata {
 }
 
 export default function DetailsPage() {
-    // State for the combined sensor data displayed in the table
-    const [sensors, setSensors] = useState<CombinedSensorData[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
+    // State for client-side mounting
+    const [mounted, setMounted] = useState(false);
 
-    // --- Refactored State Management ---
+    // State for the sensor metadata (from Firestore)
+    const [sensorMetadata, setSensorMetadata] = useState<SensorMetadata[]>([]);
+    const [metadataLoading, setMetadataLoading] = useState<boolean>(true);
+    const [metadataError, setMetadataError] = useState<string | null>(null);
+
+    // --- Sensor Selection ---
     const {
         sensorSets,
         sensorSetsLoading,
@@ -63,27 +58,38 @@ export default function DetailsPage() {
         handleSensorSetChange,
     } = useSensorSelection();
 
-    // This effect re-fetches the sensor list whenever the selected set changes.
+    // --- SSE Hook for Latest Readings ---
+    const {
+        readings: latestReadings,
+        status: sseStatus,
+        error: sseError,
+        lastUpdate,
+    } = useLatestReadingsSSE(selectedSensorSet);
+
+    // Set mounted after first render
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    // Fetch sensor metadata when selected set changes
     useEffect(() => {
         if (!selectedSensorSet) {
-            setLoading(false);
-            setSensors([]);
+            setMetadataLoading(false);
+            setSensorMetadata([]);
             return;
         }
 
-        const fetchSensors = async () => {
-            setLoading(true);
-            setError(null);
+        const fetchMetadata = async () => {
+            setMetadataLoading(true);
+            setMetadataError(null);
 
             try {
                 const db = getFirestore(app);
-
-                // Fetch sensor metadata from Firebase
                 const sensorsCollection = collection(db, 'sensor');
                 const q = query(sensorsCollection, where('sensor_set_id', '==', selectedSensorSet));
                 const sensorSnapshot = await getDocs(q);
 
-                const sensorMetadata: SensorMetadata[] = sensorSnapshot.docs.map(doc => {
+                const metadata: SensorMetadata[] = sensorSnapshot.docs.map(doc => {
                     const data = doc.data() as DocumentData;
                     return {
                         id: doc.id,
@@ -95,53 +101,30 @@ export default function DetailsPage() {
                     };
                 });
 
-                // Fetch latest readings from Cassandra via Cloud Function
-                let latestReadings: LatestReading[] = [];
-                try {
-                    const cassandraUrl = `https://us-central1-${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.cloudfunctions.net/cassandra-latest-readings?sensor_set_id=${selectedSensorSet}`;
-                    const response = await fetch(cassandraUrl);
-
-                    if (response.ok) {
-                        latestReadings = await response.json();
-                    } else {
-                        console.warn(`Failed to fetch latest readings: ${response.statusText}`);
-                        // Continue without latest readings rather than failing completely
-                    }
-                } catch (fetchError) {
-                    console.warn('Could not fetch latest readings from Cassandra:', fetchError);
-                    // Continue without latest readings rather than failing completely
-                }
-
-                // Create a map of latest readings by sensor_id for efficient lookup
-                const readingsMap = new Map<string, LatestReading>();
-                latestReadings.forEach(reading => {
-                    readingsMap.set(reading.sensor_id, reading);
-                });
-
-                // Combine metadata with latest readings
-                const combined: CombinedSensorData[] = sensorMetadata.map(sensor => {
-                    const reading = readingsMap.get(sensor.sensor_id);
-                    return {
-                        ...sensor,
-                        light_intensity: reading?.light_intensity ?? null,
-                        battery_percent: reading?.battery_percent ?? null,
-                        wifi_dbm: reading?.wifi_dbm ?? null,
-                        chip_temp_f: reading?.chip_temp_f ?? null,
-                        last_seen: reading?.last_seen ?? null,
-                    };
-                });
-
-                setSensors(combined);
+                setSensorMetadata(metadata);
             } catch (err) {
                 console.error(`Error fetching sensors for set ${selectedSensorSet}:`, err);
-                setError('Failed to load sensor data.');
+                setMetadataError('Failed to load sensor metadata.');
             } finally {
-                setLoading(false);
+                setMetadataLoading(false);
             }
         };
 
-        fetchSensors();
+        fetchMetadata();
     }, [selectedSensorSet]);
+
+    // Combine metadata with latest readings
+    const combinedSensors: CombinedSensorData[] = sensorMetadata.map(sensor => {
+        const reading = latestReadings.find(r => r.sensor_id === sensor.sensor_id);
+        return {
+            ...sensor,
+            light_intensity: reading?.light_intensity ?? null,
+            battery_percent: reading?.battery_percent ?? null,
+            wifi_dbm: reading?.wifi_dbm ?? null,
+            chip_temp_f: reading?.chip_temp_f ?? null,
+            last_seen: reading?.last_seen ?? null,
+        };
+    });
 
     // Helper function to format last_seen in local timezone
     const formatLastSeen = (lastSeenUtc: string | null): string => {
@@ -156,6 +139,29 @@ export default function DetailsPage() {
             return 'N/A';
         }
     };
+
+    // Format last update timestamp
+    const formatLastUpdate = (): string => {
+        if (!lastUpdate) return '';
+        return DateTime.fromJSDate(lastUpdate).toLocaleString(DateTime.TIME_WITH_SECONDS);
+    };
+
+    // Determine status indicator
+    const getStatusIndicator = () => {
+        switch (sseStatus) {
+            case 'connected':
+                return <span className="text-green-400">● Live</span>;
+            case 'connecting':
+                return <span className="text-yellow-400">● Connecting...</span>;
+            case 'error':
+                return <span className="text-red-400">● Error</span>;
+            case 'disconnected':
+                return <span className="text-gray-400">○ Disconnected</span>;
+        }
+    };
+
+    const loading = metadataLoading;
+    const error = metadataError || sseError;
 
     return (
         <div className="font-sans">
@@ -175,6 +181,17 @@ export default function DetailsPage() {
                             />
                         )}
                     </div>
+                    {/* Connection Status - only show after mount */}
+                    {mounted && (
+                        <div className="flex items-center gap-2">
+                            {getStatusIndicator()}
+                            {lastUpdate && (
+                                <span className="text-gray-400 text-sm">
+                                    Last update: {formatLastUpdate()}
+                                </span>
+                            )}
+                        </div>
+                    )}
                     {/* Timezone Display */}
                     {timezone && <span className="text-gray-400">Timezone: {timezone}</span>}
                     {/* Lat/Lon Display */}
@@ -188,13 +205,13 @@ export default function DetailsPage() {
                 <StatusDisplay
                     loading={loading}
                     error={error}
-                    data={sensors}
+                    data={combinedSensors}
                     loadingMessage="Loading sensor data..."
                     noDataMessage="No sensors found for the selected set."
                 />
 
                 {/* --- Sensor Details Table --- */}
-                {!loading && !error && sensors.length > 0 && (
+                {!loading && !error && combinedSensors.length > 0 && (
                     <div className="overflow-x-auto">
                         <table className="min-w-full bg-gray-800 rounded-lg shadow">
                             <thead>
@@ -211,7 +228,7 @@ export default function DetailsPage() {
                             </tr>
                             </thead>
                             <tbody>
-                            {sensors.map((sensor) => (
+                            {combinedSensors.map((sensor) => (
                                 <tr key={sensor.id} className="border-b border-gray-700 hover:bg-gray-600 transition-colors duration-200">
                                     <td className="p-3 whitespace-nowrap">{sensor.sensor_id}</td>
                                     <td className="p-3 whitespace-nowrap">{sensor.position_x_ft}</td>
