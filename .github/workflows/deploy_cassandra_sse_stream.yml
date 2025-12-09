@@ -1,0 +1,70 @@
+# .github/workflows/deploy_cassandra_sse_stream.yml
+#
+# Deploy the Cassandra SSE Stream Cloud Function
+#
+# Copyright (c) 2025 Caden Howell (cadenhowell@gmail.com)
+# Developed with assistance from Claude Sonnet 4.5 (2025).
+# Apache 2.0 Licensed as described in the file LICENSE
+
+name: Deploy Cassandra SSE Stream Function
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'functions/cassandra_sse_stream/**'
+      - '.github/workflows/deploy_cassandra_sse_stream.yml'
+
+jobs:
+  deploy:
+    env:
+      TERM: linux
+
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: '${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}'
+          service_account: '${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_FUNCTIONS }}'
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: 'Create deployment flags file'
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL_CASSANDRA_READER }}
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || secrets.GCP_PROJECT_ID }}
+        run: |
+          cat > /tmp/deploy-flags.yaml << EOF
+          --gen2:
+          --region: us-central1
+          --runtime: python311
+          --source: ./functions/cassandra_sse_stream/src
+          --entry-point: stream_sensor_updates
+          --trigger-http:
+          --allow-unauthenticated:
+          --service-account: ${SERVICE_ACCOUNT}
+          --set-env-vars:
+            GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+            GCP_REGION: us-central1
+          --timeout: 540s
+          --memory: 256Mi
+          --max-instances: 10
+          EOF
+
+      - name: 'Deploy Gen2 Cloud Function'
+        run: |
+          gcloud functions deploy cassandra-sse-stream \
+            --flags-file=/tmp/deploy-flags.yaml
