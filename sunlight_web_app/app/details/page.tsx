@@ -14,7 +14,8 @@ import { useState, useEffect } from 'react';
 import { getFirestore, collection, getDocs, query, where, DocumentData } from 'firebase/firestore';
 import { app } from '@/app/firebase';
 import { useSensorSelection } from '@/app/hooks/useSensorSelection';
-import { useLatestReadingsSSE } from '@/app/hooks/useLatestReadingsSSE';
+// SSE live refresh is disabled for now (issue #11 unfinished).
+// import { useLatestReadingsSSE } from '@/app/hooks/useLatestReadingsSSE';
 import SensorSetDropdown from '@/app/components/SensorSetDropdown';
 import StatusDisplay from '@/app/components/StatusDisplay';
 import { DateTime } from 'luxon';
@@ -27,6 +28,15 @@ interface SensorMetadata {
     position_y_ft: number;
     board: string;
     sunlight_sensor_model: string;
+}
+
+interface LatestReading {
+    sensor_id: string;
+    light_intensity: number | null;
+    battery_percent: number | null;
+    wifi_dbm: number | null;
+    chip_temp_f: number | null;
+    last_seen: string | null;
 }
 
 interface CombinedSensorData extends SensorMetadata {
@@ -59,12 +69,16 @@ export default function DetailsPage() {
     } = useSensorSelection();
 
     // --- SSE Hook for Latest Readings ---
-    const {
-        readings: latestReadings,
-        status: sseStatus,
-        error: sseError,
-        lastUpdate,
-    } = useLatestReadingsSSE(selectedSensorSet);
+    // Disabled: the stream flaps between live and error. Table stays up with static status.
+    // const {
+    //     readings: latestReadings,
+    //     status: sseStatus,
+    //     error: sseError,
+    //     lastUpdate,
+    // } = useLatestReadingsSSE(selectedSensorSet);
+    const latestReadings: LatestReading[] = [];
+    const sseStatus = 'connecting' as 'disconnected' | 'connecting' | 'connected' | 'error';
+    const lastUpdate: Date | null = null;
 
     // Set mounted after first render
     useEffect(() => {
@@ -161,7 +175,8 @@ export default function DetailsPage() {
     };
 
     const loading = metadataLoading;
-    const error = metadataError || sseError;
+    // SSE errors are intentionally not shown here so the table always stays up.
+    const error = metadataError;
 
     return (
         <div className="font-sans">

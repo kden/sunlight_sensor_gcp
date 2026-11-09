@@ -94,21 +94,6 @@ describe('DetailsPage', () => {
         ];
         mockGetDocs.mockResolvedValue({ docs: mockSensors });
 
-        // Mock the SSE stream to return live data
-        mockUseLatestReadingsSSE.mockReturnValue({
-            readings: [{
-                sensor_id: 'Sensor A',
-                light_intensity: 5432.1,
-                battery_percent: 85,
-                wifi_dbm: -45,
-                chip_temp_f: 72.3,
-                last_seen: '2025-01-15T10:30:00Z',
-            }],
-            status: 'connected',
-            error: null,
-            lastUpdate: null,
-        });
-
         render(<DetailsPage />);
 
         // Wait for the table to appear in the document
@@ -121,11 +106,9 @@ describe('DetailsPage', () => {
         expect(screen.getByText('10')).toBeInTheDocument();
         expect(screen.getByText('20')).toBeInTheDocument();
 
-        // Check for the new Cassandra data columns
-        expect(screen.getByText('5432.1')).toBeInTheDocument();
-        expect(screen.getByText('85%')).toBeInTheDocument();
-        expect(screen.getByText('-45')).toBeInTheDocument();
-        expect(screen.getByText('72.3')).toBeInTheDocument();
+        // Live refresh is disabled for now, so live columns show N/A and status stays Connecting
+        expect(screen.getAllByText('N/A').length).toBeGreaterThanOrEqual(5);
+        expect(screen.getByText(/Connecting/)).toBeInTheDocument();
     });
 
     it('should display an error message if the data fetch fails', async () => {
