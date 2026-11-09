@@ -8,9 +8,13 @@
  * Apache 2.0 Licensed as described in the file LICENSE
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import SensorSetDropdown from "@/app/components/SensorSetDropdown";
 import { SensorSet } from '@/app/types/SensorSet';
+
+const MIN_DATE = '2025-08-01';
+const MAX_DATE = '2025-11-30';
+const clampDate = (d: string) => (d < MIN_DATE ? MIN_DATE : d > MAX_DATE ? MAX_DATE : d);
 
 interface ToolbarProps {
   selectedDate: string;
@@ -37,6 +41,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
   latitude,
   longitude,
 }) => {
+  // Snap any out-of-range date (e.g. today's default or persisted state) into the allowed window.
+  useEffect(() => {
+    if (selectedDate && clampDate(selectedDate) !== selectedDate) {
+      onDateChange(clampDate(selectedDate));
+    }
+  }, [selectedDate, onDateChange]);
+
   return (
     <div className="mb-4 flex items-center flex-wrap gap-4">
       {/* Date Picker */}
@@ -46,7 +57,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
           type="date"
           id="date-picker"
           value={selectedDate}
-          onChange={(e) => onDateChange(e.target.value)}
+          min={MIN_DATE}
+          max={MAX_DATE}
+          onChange={(e) => e.target.value && onDateChange(clampDate(e.target.value))}
           className="bg-gray-700 text-white p-2 rounded"
         />
       </div>

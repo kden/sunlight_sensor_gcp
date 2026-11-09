@@ -72,13 +72,9 @@ export default function RootLayout({
                 <div className="bg-amber-300 text-gray-900 p-4 rounded-lg mb-6 border-l-4 border-amber-500">
                     <p className="font-medium">
                         {/* News */}
-                        Not seeing any data? It&#39;s getting cold here in the Midwest, and I am not excited about
-                        going outside to change the sensor batteries.  So the software is working, but the sensors may be down.
-                    </p>
-                    <br/>
-                    <p className="font-medium">
-                        You can look up about 2 continuous months of sensor data from August through September 2025.
-                        Additionally, you can select the "Test" sensor set, with a constant, generated pattern.
+                        I&#39;ve (physically) moved away from the data collection site to a house with a much sunnier yard.
+                        For now at least, I&#39;m shutting down the Sunlight Sensor Project. You can still see the data collected
+                        from August 2025 through November 2025 as a demonstration of how the project worked.
                     </p>
                 </div>
                 {/* Comment out error boundary to surface errors. */}

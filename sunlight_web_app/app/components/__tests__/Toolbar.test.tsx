@@ -28,7 +28,7 @@ describe('Toolbar Component', () => {
   // A helper function to render the component with default props
   const renderToolbar = (props = {}) => {
     const defaultProps = {
-      selectedDate: '2024-01-15',
+      selectedDate: '2025-09-15',
       onDateChange: mockOnDateChange,
       selectedSensorSet: 'set-1',
       onSensorSetChange: mockOnSensorSetChange,
@@ -54,7 +54,7 @@ describe('Toolbar Component', () => {
 
     // Check for the date picker and its value
     expect(screen.getByLabelText('Select Date:')).toBeInTheDocument();
-    expect(screen.getByLabelText('Select Date:')).toHaveValue('2024-01-15');
+    expect(screen.getByLabelText('Select Date:')).toHaveValue('2025-09-15');
 
     // Check for the sensor set dropdown
     expect(screen.getByLabelText('Sensor Set:')).toBeInTheDocument();
@@ -73,8 +73,8 @@ describe('Toolbar Component', () => {
   it('should call onDateChange when the date is changed', async () => {
     renderToolbar();
     const datePicker = screen.getByLabelText('Select Date:');
-    fireEvent.change(datePicker, { target: { value: '2024-02-20' } });
-    expect(mockOnDateChange).toHaveBeenCalledWith('2024-02-20');
+    fireEvent.change(datePicker, { target: { value: '2025-10-20' } });
+    expect(mockOnDateChange).toHaveBeenCalledWith('2025-10-20');
   });
 
   it('should call onSensorSetChange when a new sensor set is selected', async () => {

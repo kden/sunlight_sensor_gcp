@@ -27,9 +27,7 @@ import {ChartDataPoint} from "@/app/types/ChartDataPoint";
 const YARD_LENGTH = 133;
 const YARD_WIDTH = 33;
 
-const getTodayString = () => {
-    return DateTime.local().toISODate();
-};
+const getDefaultDateString = () => '2025-08-01'; // Project shut down; default to first day of archived data
 
 const SensorHeatmap = () => {
     const [isMounted, setIsMounted] = useState(false);
@@ -40,7 +38,7 @@ const SensorHeatmap = () => {
     const playIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // --- State for user selections ---
-    const [selectedDate, setSelectedDate] = usePersistentState('selectedDate', getTodayString());
+    const [selectedDate, setSelectedDate] = usePersistentState('selectedDate', getDefaultDateString());
 
     // --- Refactored State Management ---
     const {

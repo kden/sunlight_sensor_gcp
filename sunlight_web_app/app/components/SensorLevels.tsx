@@ -16,7 +16,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { DateTime } from 'luxon';
 import usePersistentState from '@/app/hooks/usePersistentState';
 import { useSensorLevelsData } from '@/app/hooks/useSensorLevelsData';
 import { useSensorSelection } from '@/app/hooks/useSensorSelection';
@@ -28,7 +27,7 @@ import StatusDisplay from './StatusDisplay';
 import WeatherDataTable from './WeatherDataTable';
 import HourlyWeatherDataTable from './HourlyWeatherDataTable';
 
-const getTodayString = () => DateTime.local().toISODate();
+const getDefaultDateString = () => '2025-08-01'; // Project shut down; default to first day of archived data
 
 const SensorLevels = () => {
   const [isMounted, setIsMounted] = useState(false);
@@ -36,7 +35,7 @@ const SensorLevels = () => {
   const [hiddenRadiationLines, setHiddenRadiationLines] = useState<Set<string>>(new Set());
   const [maxIntensity, setMaxIntensity] = useState(10000);
 
-  const [selectedDate, setSelectedDate] = usePersistentState('selectedDate', getTodayString());
+  const [selectedDate, setSelectedDate] = usePersistentState('selectedDate', getDefaultDateString());
 
   const {
     sensorSets,
