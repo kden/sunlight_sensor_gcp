@@ -14,6 +14,7 @@ import '@testing-library/jest-dom';
 import DetailsPage from '../page';
 import { getDocs } from 'firebase/firestore';
 import { useSensorSelection } from '@/app/hooks/useSensorSelection';
+import { useLatestReadingsSSE } from '@/app/hooks/useLatestReadingsSSE';
 
 // Mock the firestore module, which is still a dependency for the data fetch
 jest.mock('firebase/firestore', () => ({
@@ -27,20 +28,22 @@ jest.mock('firebase/firestore', () => ({
 // Mock the component's new direct dependency, the useSensorSelection hook.
 jest.mock('@/app/hooks/useSensorSelection');
 
-// Mock the global fetch function
-global.fetch = jest.fn();
+// Mock the SSE hook that streams the latest readings
+jest.mock('@/app/hooks/useLatestReadingsSSE');
 
 // Cast the mocks for TypeScript to recognize them as Jest mock functions
 const mockUseSensorSelection = useSensorSelection as jest.Mock;
 const mockGetDocs = getDocs as jest.Mock;
-const mockFetch = global.fetch as jest.Mock;
+const mockUseLatestReadingsSSE = useLatestReadingsSSE as jest.Mock;
 
 describe('DetailsPage', () => {
     beforeEach(() => {
         // Clear all mocks before each test to ensure isolation
         mockGetDocs.mockClear();
         mockUseSensorSelection.mockClear();
-        mockFetch.mockClear();
+        mockUseLatestReadingsSSE.mockReset();
+        // Default: connected stream with no readings yet
+        mockUseLatestReadingsSSE.mockReturnValue({ readings: [], status: 'connected', error: null, lastUpdate: null });
     });
 
     it('should render the main heading and show a loading message initially', () => {
@@ -91,10 +94,9 @@ describe('DetailsPage', () => {
         ];
         mockGetDocs.mockResolvedValue({ docs: mockSensors });
 
-        // Mock the Cassandra fetch to return live data
-        mockFetch.mockResolvedValue({
-            ok: true,
-            json: async () => [{
+        // Mock the SSE stream to return live data
+        mockUseLatestReadingsSSE.mockReturnValue({
+            readings: [{
                 sensor_id: 'Sensor A',
                 light_intensity: 5432.1,
                 battery_percent: 85,
@@ -102,6 +104,9 @@ describe('DetailsPage', () => {
                 chip_temp_f: 72.3,
                 last_seen: '2025-01-15T10:30:00Z',
             }],
+            status: 'connected',
+            error: null,
+            lastUpdate: null,
         });
 
         render(<DetailsPage />);
@@ -141,7 +146,7 @@ describe('DetailsPage', () => {
 
         // Wait for the error message to be displayed
         await waitFor(() => {
-            expect(screen.getByText('Failed to load sensor data.')).toBeInTheDocument();
+            expect(screen.getByText('Failed to load sensor metadata.')).toBeInTheDocument();
         });
     });
 
@@ -188,7 +193,7 @@ describe('DetailsPage', () => {
     });
 
     it('should gracefully handle Cassandra fetch failures and show N/A', async () => {
-        // Setup: Firebase succeeds but Cassandra fails
+        // Setup: Firestore metadata succeeds but no live readings have arrived
         mockUseSensorSelection.mockReturnValue({
             selectedSensorSet: 'set1',
             sensorSets: [{ id: 'set1', name: 'Test Set 1', timezone: 'UTC', latitude: 40.1, longitude: -80.2 }],
@@ -214,9 +219,6 @@ describe('DetailsPage', () => {
         ];
         mockGetDocs.mockResolvedValue({ docs: mockSensors });
 
-        // Mock the Cassandra fetch to fail
-        mockFetch.mockRejectedValue(new Error('Network error'));
-
         render(<DetailsPage />);
 
         // Wait for the table to appear
@@ -224,11 +226,11 @@ describe('DetailsPage', () => {
             expect(screen.getByRole('table')).toBeInTheDocument();
         });
 
-        // Firebase data should still be shown
+        // Firestore metadata should still be shown
         expect(screen.getByText('Sensor B')).toBeInTheDocument();
 
-        // Cassandra data should show N/A
+        // Live-reading columns should show N/A
         const naCells = screen.getAllByText('N/A');
-        expect(naCells.length).toBeGreaterThanOrEqual(5); // Should have N/A for all Cassandra columns
+        expect(naCells.length).toBeGreaterThanOrEqual(5); // Should have N/A for all live-reading columns
     });
 });
