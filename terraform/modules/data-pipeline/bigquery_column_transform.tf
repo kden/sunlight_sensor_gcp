@@ -85,62 +85,63 @@ resource "google_project_iam_member" "bq_transfer_sa_job_user" {
 }
 
 # The scheduled query that processes the raw data into the transformed table
-resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
-  project                = var.gcp_project_id
-  display_name           = "transform_sunlight_data: Transform Sunlight Data"
-  location               = "US" # Or your desired location
-  data_source_id         = "scheduled_query"
-  schedule               = "every 15 minutes"
-  destination_dataset_id = var.sunlight_dataset_id
-  service_account_name   = google_service_account.bq_transfer_sa.email
-
-  params = {
-    destination_table_name_template = google_bigquery_table.transformed_sunlight_table.table_id
-    write_disposition               = "WRITE_APPEND"
-
-    query                           = <<-EOF
-      WITH ParsedData AS (
-        -- First, parse and unnest the raw JSON data
-        SELECT
-          CAST(JSON_EXTRACT_SCALAR(reading, '$.light_intensity') AS FLOAT64) AS light_intensity,
-          JSON_EXTRACT_SCALAR(reading, '$.sensor_id') as sensor_id,
-          JSON_EXTRACT_SCALAR(reading, '$.sensor_set_id') AS sensor_set_id,
-          CAST(JSON_EXTRACT_SCALAR(reading, '$.timestamp') AS TIMESTAMP) AS timestamp,
-          source_table.ingestion_time
-        FROM
-          `${var.raw_sensor_data_table_id}` AS source_table,
-          UNNEST(JSON_QUERY_ARRAY(source_table.data)) as reading -- Unnest the array of readings
-        WHERE
-          -- Process records incrementally based on ingestion time
-          source_table.ingestion_time > IFNULL(
-            (
-              SELECT MAX(t.ingestion_time)
-              FROM `${google_bigquery_table.transformed_sunlight_table.project}.${google_bigquery_table.transformed_sunlight_table.dataset_id}.${google_bigquery_table.transformed_sunlight_table.table_id}` AS t
-            ),
-            TIMESTAMP('1970-01-01 00:00:00 UTC')
-          )
-      )
-      -- Final selection of the parsed data.
-      SELECT
-        pd.light_intensity,
-        pd.sensor_id,
-        pd.timestamp,
-        pd.ingestion_time,
-        pd.sensor_set_id,
-        CURRENT_TIMESTAMP() AS last_updated
-      FROM
-        ParsedData AS pd
-      -- Ensure essential fields are not null after parsing
-      WHERE pd.light_intensity IS NOT NULL
-        AND pd.sensor_id IS NOT NULL
-        AND pd.timestamp IS NOT NULL
-    EOF
-  }
-
-  depends_on = [
-    # Ensure permissions are granted before creating the transfer
-    google_project_iam_member.bq_transfer_sa_data_editor,
-    google_project_iam_member.bq_transfer_sa_job_user,
-  ]
-}
+# SUSPENDED (project shutdown): uncomment this block to restore.
+# resource "google_bigquery_data_transfer_config" "transform_sunlight_data" {
+#   project                = var.gcp_project_id
+#   display_name           = "transform_sunlight_data: Transform Sunlight Data"
+#   location               = "US" # Or your desired location
+#   data_source_id         = "scheduled_query"
+#   schedule               = "every 15 minutes"
+#   destination_dataset_id = var.sunlight_dataset_id
+#   service_account_name   = google_service_account.bq_transfer_sa.email
+#
+#   params = {
+#     destination_table_name_template = google_bigquery_table.transformed_sunlight_table.table_id
+#     write_disposition               = "WRITE_APPEND"
+#
+#     query                           = <<-EOF
+#       WITH ParsedData AS (
+#         -- First, parse and unnest the raw JSON data
+#         SELECT
+#           CAST(JSON_EXTRACT_SCALAR(reading, '$.light_intensity') AS FLOAT64) AS light_intensity,
+#           JSON_EXTRACT_SCALAR(reading, '$.sensor_id') as sensor_id,
+#           JSON_EXTRACT_SCALAR(reading, '$.sensor_set_id') AS sensor_set_id,
+#           CAST(JSON_EXTRACT_SCALAR(reading, '$.timestamp') AS TIMESTAMP) AS timestamp,
+#           source_table.ingestion_time
+#         FROM
+#           `${var.raw_sensor_data_table_id}` AS source_table,
+#           UNNEST(JSON_QUERY_ARRAY(source_table.data)) as reading -- Unnest the array of readings
+#         WHERE
+#           -- Process records incrementally based on ingestion time
+#           source_table.ingestion_time > IFNULL(
+#             (
+#               SELECT MAX(t.ingestion_time)
+#               FROM `${google_bigquery_table.transformed_sunlight_table.project}.${google_bigquery_table.transformed_sunlight_table.dataset_id}.${google_bigquery_table.transformed_sunlight_table.table_id}` AS t
+#             ),
+#             TIMESTAMP('1970-01-01 00:00:00 UTC')
+#           )
+#       )
+#       -- Final selection of the parsed data.
+#       SELECT
+#         pd.light_intensity,
+#         pd.sensor_id,
+#         pd.timestamp,
+#         pd.ingestion_time,
+#         pd.sensor_set_id,
+#         CURRENT_TIMESTAMP() AS last_updated
+#       FROM
+#         ParsedData AS pd
+#       -- Ensure essential fields are not null after parsing
+#       WHERE pd.light_intensity IS NOT NULL
+#         AND pd.sensor_id IS NOT NULL
+#         AND pd.timestamp IS NOT NULL
+#     EOF
+#   }
+#
+#   depends_on = [
+#     # Ensure permissions are granted before creating the transfer
+#     google_project_iam_member.bq_transfer_sa_data_editor,
+#     google_project_iam_member.bq_transfer_sa_job_user,
+#   ]
+# }
 

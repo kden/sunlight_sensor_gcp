@@ -29,14 +29,15 @@ resource "google_service_account_iam_member" "deployer_act_as_rest_proxy_runtime
 
 # --- Allow Public (Unauthenticated) Access to the Cloud Function ---
 # This makes the function's default URL publicly accessible by targeting the underlying Cloud Run service.
-resource "google_cloud_run_service_iam_member" "allow_public" {
-  project  = var.gcp_project_id
-  location = var.region
-  # The service name is determined by the function name deployed via the GitHub Action
-  service  = "rest-to-pubsub-proxy-function"
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-}
+# SUSPENDED (project shutdown): uncomment this block to restore.
+# resource "google_cloud_run_service_iam_member" "allow_public" {
+#   project  = var.gcp_project_id
+#   location = var.region
+#   # The service name is determined by the function name deployed via the GitHub Action
+#   service  = "rest-to-pubsub-proxy-function"
+#   role     = "roles/run.invoker"
+#   member   = "allUsers"
+# }
 
 
 # --- Map Your Custom Domain to the underlying Cloud Run service ---

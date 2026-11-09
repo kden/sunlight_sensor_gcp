@@ -58,28 +58,29 @@ resource "google_cloud_run_service_iam_member" "allow_sensors_invoker" {
 }
 
 # 6. Cloud Scheduler to run the job
-resource "google_cloud_scheduler_job" "bq_to_firestore_sensors_scheduler" {
-  project     = var.gcp_project_id
-  region      = var.region
-  name        = "bq-to-firebase-job"
-  schedule    = "*/15 * * * *" # Runs every 15 minutes
-  time_zone   = "UTC"
-  description = "Transfers sensor data from BigQuery to Firebase."
-
-  http_target {
-    uri         = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-sensor-data-exporter"
-    http_method = "POST"
-
-    oidc_token {
-      service_account_email = google_service_account.bq_to_fs_sensors_invoker_sa.email
-      audience              = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-sensor-data-exporter"
-    }
-  }
-
-  depends_on = [
-    google_cloud_run_service_iam_member.allow_sensors_invoker
-  ]
-}
+# SUSPENDED (project shutdown): uncomment this block to restore.
+# resource "google_cloud_scheduler_job" "bq_to_firestore_sensors_scheduler" {
+#   project     = var.gcp_project_id
+#   region      = var.region
+#   name        = "bq-to-firebase-job"
+#   schedule    = "*/15 * * * *" # Runs every 15 minutes
+#   time_zone   = "UTC"
+#   description = "Transfers sensor data from BigQuery to Firebase."
+#
+#   http_target {
+#     uri         = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-sensor-data-exporter"
+#     http_method = "POST"
+#
+#     oidc_token {
+#       service_account_email = google_service_account.bq_to_fs_sensors_invoker_sa.email
+#       audience              = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-sensor-data-exporter"
+#     }
+#   }
+#
+#   depends_on = [
+#     google_cloud_run_service_iam_member.allow_sensors_invoker
+#   ]
+# }
 
 # --- Outputs ---
 output "bq_to_firestore_sensors_sa_email" {

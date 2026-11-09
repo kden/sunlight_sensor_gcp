@@ -59,29 +59,30 @@ resource "google_cloud_run_service_iam_member" "allow_weather_invoker" {
 
 # 6. Cloud Scheduler Job
 # Runs daily to trigger the export process.
-resource "google_cloud_scheduler_job" "bq_to_fs_weather_scheduler" {
-  project     = var.gcp_project_id
-  region      = var.region
-  name        = "bq-to-fs-weather-job"
-  schedule    = "0 2 * * *"
-  time_zone   = "America/Chicago"
-  description = "Transfers daily historical weather data from BigQuery to Firestore."
-
-  http_target {
-    uri         = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-weather-exporter"
-    http_method = "POST"
-    body        = base64encode("{\"export_type\": \"both\"}") # Send a JSON body
-
-    oidc_token {
-      service_account_email = google_service_account.bq_to_fs_weather_invoker_sa.email
-      audience              = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-weather-exporter"
-    }
-  }
-
-  depends_on = [
-    google_cloud_run_service_iam_member.allow_weather_invoker
-  ]
-}
+# SUSPENDED (project shutdown): uncomment this block to restore.
+# resource "google_cloud_scheduler_job" "bq_to_fs_weather_scheduler" {
+#   project     = var.gcp_project_id
+#   region      = var.region
+#   name        = "bq-to-fs-weather-job"
+#   schedule    = "0 2 * * *"
+#   time_zone   = "America/Chicago"
+#   description = "Transfers daily historical weather data from BigQuery to Firestore."
+#
+#   http_target {
+#     uri         = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-weather-exporter"
+#     http_method = "POST"
+#     body        = base64encode("{\"export_type\": \"both\"}") # Send a JSON body
+#
+#     oidc_token {
+#       service_account_email = google_service_account.bq_to_fs_weather_invoker_sa.email
+#       audience              = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/bq-to-fs-weather-exporter"
+#     }
+#   }
+#
+#   depends_on = [
+#     google_cloud_run_service_iam_member.allow_weather_invoker
+#   ]
+# }
 
 # --- Outputs ---
 output "bq_to_fs_weather_sa_email" {

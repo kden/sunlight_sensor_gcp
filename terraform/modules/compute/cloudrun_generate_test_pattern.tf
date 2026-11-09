@@ -36,30 +36,31 @@ resource "google_cloud_run_service_iam_member" "allow_test_pattern_invoker" {
 }
 
 # --- Define the Cloud Scheduler Job ---
-resource "google_cloud_scheduler_job" "invoke_daily_test_pattern_generator" {
-  project     = var.gcp_project_id
-  name        = "daily-test-pattern-generator-trigger"
-  region      = var.region
-  schedule    = "0 2 * * *" # Runs every day at 2:00 AM
-  time_zone   = "America/Chicago"
-  description = "Triggers the daily test pattern data generator."
-
-  http_target {
-    # Construct the URI for the function deployed by the GitHub Action
-    uri         = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/daily-test-pattern-generator"
-    http_method = "POST"
-
-    oidc_token {
-      service_account_email = google_service_account.daily_test_pattern_invoker_sa.email
-      # The 'audience' must match the URI of the function being called
-      audience              = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/daily-test-pattern-generator"
-    }
-  }
-
-  depends_on = [
-    google_cloud_run_service_iam_member.allow_test_pattern_invoker
-  ]
-}
+# SUSPENDED (project shutdown): uncomment this block to restore.
+# resource "google_cloud_scheduler_job" "invoke_daily_test_pattern_generator" {
+#   project     = var.gcp_project_id
+#   name        = "daily-test-pattern-generator-trigger"
+#   region      = var.region
+#   schedule    = "0 2 * * *" # Runs every day at 2:00 AM
+#   time_zone   = "America/Chicago"
+#   description = "Triggers the daily test pattern data generator."
+#
+#   http_target {
+#     # Construct the URI for the function deployed by the GitHub Action
+#     uri         = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/daily-test-pattern-generator"
+#     http_method = "POST"
+#
+#     oidc_token {
+#       service_account_email = google_service_account.daily_test_pattern_invoker_sa.email
+#       # The 'audience' must match the URI of the function being called
+#       audience              = "https://${var.region}-${var.gcp_project_id}.cloudfunctions.net/daily-test-pattern-generator"
+#     }
+#   }
+#
+#   depends_on = [
+#     google_cloud_run_service_iam_member.allow_test_pattern_invoker
+#   ]
+# }
 
 # --- Outputs ---
 output "test_pattern_runtime_sa_email" {

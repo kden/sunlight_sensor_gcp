@@ -53,29 +53,30 @@ EOF
   deletion_protection = false # Set to true in production
 }
 
-resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
-  project                = var.gcp_project_id
-  display_name           = "downsample_sunlight_transfer: Incremental Downsample Sunlight Data"
-  location               = "US"
-  data_source_id         = "scheduled_query"
-  schedule               = "every 15 minutes"
-  destination_dataset_id = var.sunlight_dataset_id
-  service_account_name   = google_service_account.bq_transfer_sa.email
-
-  params = {
-    query = templatefile("${path.module}/queries/downsample_sunlight.sql.tpl", {
-      project_id        = var.gcp_project_id
-      dataset_id        = var.sunlight_dataset_id
-      destination_table = google_bigquery_table.downsampled_sunlight_table.table_id
-      source_table      = google_bigquery_table.transformed_sunlight_table.table_id
-    })
-  }
-
-  depends_on = [
-    # Ensure permissions are granted before creating the transfer
-    google_project_iam_member.bq_transfer_sa_data_editor,
-    google_project_iam_member.bq_transfer_sa_job_user,
-  ]
-}
+# SUSPENDED (project shutdown): uncomment this block to restore.
+# resource "google_bigquery_data_transfer_config" "downsample_sunlight_transfer" {
+#   project                = var.gcp_project_id
+#   display_name           = "downsample_sunlight_transfer: Incremental Downsample Sunlight Data"
+#   location               = "US"
+#   data_source_id         = "scheduled_query"
+#   schedule               = "every 15 minutes"
+#   destination_dataset_id = var.sunlight_dataset_id
+#   service_account_name   = google_service_account.bq_transfer_sa.email
+#
+#   params = {
+#     query = templatefile("${path.module}/queries/downsample_sunlight.sql.tpl", {
+#       project_id        = var.gcp_project_id
+#       dataset_id        = var.sunlight_dataset_id
+#       destination_table = google_bigquery_table.downsampled_sunlight_table.table_id
+#       source_table      = google_bigquery_table.transformed_sunlight_table.table_id
+#     })
+#   }
+#
+#   depends_on = [
+#     # Ensure permissions are granted before creating the transfer
+#     google_project_iam_member.bq_transfer_sa_data_editor,
+#     google_project_iam_member.bq_transfer_sa_job_user,
+#   ]
+# }
 
 

@@ -20,6 +20,14 @@ resource "google_project_iam_member" "webapp_deployer_firebase_admin" {
   member  = "serviceAccount:${google_service_account.webapp_deployer.email}"
 }
 
+# Lets the Firebase Hosting deploy action check that the Hosting API is enabled
+# (serviceusage.services.get).
+resource "google_project_iam_member" "webapp_deployer_serviceusage_viewer" {
+  project = var.gcp_project_id
+  role    = "roles/serviceusage.serviceUsageViewer"
+  member  = "serviceAccount:${google_service_account.webapp_deployer.email}"
+}
+
 resource "google_project_iam_member" "webapp_deployer_storage_admin" {
   project = var.gcp_project_id
   role    = "roles/storage.admin"

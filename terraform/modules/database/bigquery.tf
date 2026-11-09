@@ -228,12 +228,13 @@ EOF
 }
 
 # The Pub/Sub subscription that writes to the raw BigQuery table
-resource "google_pubsub_subscription" "sunlight_subscription_bq" {
-  project = var.gcp_project_id
-  name    = "sunlight-sensor-data-to-bq"
-  topic   = var.pubsub_topic_name  # Reference the topic by name
-
-  bigquery_config {
-    table = "${google_bigquery_table.sunlight_table.project}:${google_bigquery_table.sunlight_table.dataset_id}.${google_bigquery_table.sunlight_table.table_id}"
-  }
-}
+# SUSPENDED (project shutdown): uncomment this block to restore.
+# resource "google_pubsub_subscription" "sunlight_subscription_bq" {
+#   project = var.gcp_project_id
+#   name    = "sunlight-sensor-data-to-bq"
+#   topic   = var.pubsub_topic_name  # Reference the topic by name
+#
+#   bigquery_config {
+#     table = "${google_bigquery_table.sunlight_table.project}:${google_bigquery_table.sunlight_table.dataset_id}.${google_bigquery_table.sunlight_table.table_id}"
+#   }
+# }
